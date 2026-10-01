@@ -3,6 +3,12 @@ function generate(members,drop,date='',eventName=''){
  const E=root.RiskEngine,fmt=n=>Number.isFinite(n)?n.toLocaleString('zh-TW',{maximumFractionDigits:2}):'無法計算',pct=n=>fmt(n)+'%',total=E.family(members,drop);
  const lines=[`部位風險摘要｜基準日：${date||'未填寫'}`,`情境：全部股票同步下跌 ${pct(drop*100)}${eventName?'（'+eventName+'）':''}。金額單位：萬元。`,''];
  for(const m of members){
+  if(m.data.pools.every(p=>p.cash!==undefined)){
+   const s=m.data,now=E.calculate(s),r=E.calculate(s,drop);
+   lines.push(`【${m.name}】`,`目前股票 ${fmt(now.stock)}、借款 ${fmt(now.debt)}、淨資產 ${fmt(now.equity)}、現金 ${fmt(s.cash)}。`,`借款／總資產 ${now.ltv===null?'無法計算':pct(now.ltv)}；股票曝險倍數 ${now.leverage===null?'淨資產非正':fmt(now.leverage)+' 倍'}。`);
+   now.pools.forEach((p,i)=>{const q=r.pools[i];lines.push(`• ${p.name}：擔保市值 ${fmt(p.value)}、借款 ${fmt(p.debt)}、維持率 ${p.ratio===null?'無借款':pct(p.ratio)}；可跌 ${p.debt?pct(Math.max(0,p.buffer*100)):'無借款'}。`,`  未設質現股 ${fmt(p.other)}、可用現金 ${fmt(p.cash)}、追加設定：${p.usePledge?'全投入':'未追加'}。`,`  股票下跌 ${pct(drop*100)} 後維持率 ${q.ratio===null?'無借款':pct(q.ratio)}；${q.breach?'需補款':'未觸發追繳'}，需還本金 ${fmt(q.breach?q.repay:0)}、現金缺口 ${fmt(Math.max(0,(q.breach?q.repay:0)-p.cash))}。`);});
+   lines.push(`本範圍情境後淨資產 ${fmt(r.equity)}、需還本金 ${fmt(r.repay)}、券商現金缺口合計 ${fmt(r.cashGap)}。`, '各券商獨立追繳，股票與現金不自動互抵；確認可移轉後再調整雙方資料。','');continue;
+  }
   const s=m.data,base=E.calculate({...s,usePledge:false}),now=E.calculate(s),r=E.calculate(s,drop),a=base.pools[0],b=now.pools[0];
   const ratio=p=>p?.ratio===null?'無借款':pct(p.ratio);
   const buffer=p=>p?.debt?pct(Math.max(0,p.value>0?p.buffer*100:0)):'無借款';
@@ -17,7 +23,7 @@ function generate(members,drop,date='',eventName=''){
  }
  lines.push(`${members.length===1?'此成員合計':'家庭合計'}：股票下跌 ${pct(drop*100)} 後淨資產 ${fmt(total.equity)}、需還本金 ${fmt(total.repay)}、各成員現金缺口合計 ${fmt(total.cashGap)}（不跨成員互抵）。`,
  '指標說明：借款比例＝借款÷（股票＋現金）；股票曝險倍數＝股票÷淨資產；可支援跌幅為整體維持率碰到130%的位置，不含現金還款效果。',
- '此為每位成員的合計模型，無法判斷個別券商帳戶槓桿或最早追繳時間。假設股票同步下跌、擔保按市值100%認列，追加股票可及時投入；未計利息、個股差異與轉入等待時間。歷史情境是跌幅壓力快照，非逐日回測。');
+ '各券商帳戶獨立計算；未分券商的舊合計資料無法判斷個別券商風險。假設股票同步下跌、擔保按市值100%認列，追加股票可及時投入；未計利息、個股差異與轉入等待時間。歷史情境是跌幅壓力快照，非逐日回測。');
  return lines.join('\n');
 }
 root.RiskSummary={generate};if(typeof module!=='undefined')module.exports=root.RiskSummary;
