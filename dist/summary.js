@@ -15,7 +15,7 @@ function generate(members,drop,date='',eventName=''){
    `股票下跌 ${pct(drop*100)} 後：淨資產 ${fmt(r.equity)}、整體維持率 ${ratio(r.pools[0])}；估計需還本金 ${fmt(r.repay)}、現金缺口 ${fmt(r.cashGap)}。`,
    r.cashGap>0?'需確認補款來源與各券商期限；合計缺口不代表個別券商實際通知金額。':r.breached?'需核對現金可用時間與各券商實際補繳要求。':'合計擔保足夠仍須查看個別券商維持率及追繳通知。','');
  }
- lines.push(`家庭合計：股票下跌 ${pct(drop*100)} 後淨資產 ${fmt(total.equity)}、需還本金 ${fmt(total.repay)}、各成員現金缺口合計 ${fmt(total.cashGap)}（不跨成員互抵）。`,
+ lines.push(`${members.length===1?'此成員合計':'家庭合計'}：股票下跌 ${pct(drop*100)} 後淨資產 ${fmt(total.equity)}、需還本金 ${fmt(total.repay)}、各成員現金缺口合計 ${fmt(total.cashGap)}（不跨成員互抵）。`,
  '指標說明：借款比例＝借款÷（股票＋現金）；股票曝險倍數＝股票÷淨資產；可支援跌幅為整體維持率碰到130%的位置，不含現金還款效果。',
  '此為每位成員的合計模型，無法判斷個別券商帳戶槓桿或最早追繳時間。假設股票同步下跌、擔保按市值100%認列，追加股票可及時投入；未計利息、個股差異與轉入等待時間。歷史情境是跌幅壓力快照，非逐日回測。');
  return lines.join('\n');
