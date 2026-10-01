@@ -19,3 +19,8 @@ const below166=modern({pledgeValue:150,pledgeDebt:100,marginValue:0,marginDebt:0
 assert.equal(E.capacity(below166).current,0);assert.equal(E.calculate(below166).breached,1);assert.equal(E.capacity(below166).cash,0);
 close(E.calculate(staged,.2).repay,20+2/1.3);
 console.log('Passed: every displayed stage uses pledge166/margin130; pledged150 yields zero conservative buffer.');
+
+close(E.capacity(pledge).cashOnly,.502);close(E.capacity(margin).cashOnly,.61);
+const enough=E.readiness({...pledge,cash:100},.3);assert.equal(enough.label,'現金即可補足');assert.equal(enough.needsStock,false);close(enough.cashUsed,enough.original.repay);
+const rescue=E.readiness(pledge,.6);assert.equal(rescue.needsStock,true);assert.equal(rescue.cashUsed,20);assert.ok(rescue.afterCashGap>0);assert.equal(rescue.support.cashGap,0);
+console.log('Passed: cash-only capacity and cash-first actions; no stock usage when cash can cover; stock rescue only for residual gaps.');

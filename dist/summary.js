@@ -5,19 +5,15 @@ function generate(members,drop,date='',eventName=''){
  for(const m of members){
   if(m.data.pools.every(p=>p.cash!==undefined)){
    const s=m.data,now=E.calculate(s),r=E.calculate(s,drop),c=E.capacity(s),v=E.readiness(s,drop);
-   const added=E.calculate({...s,usePledge:true,pools:s.pools.map(p=>({...p,pledge:p.other??0}))}).pools.filter(p=>p.debt>0);
-   const limit=added.length?Math.min(...added.map(p=>Math.max(0,p.buffer))):null;
-   const first=added.filter(p=>Math.abs(Math.max(0,p.buffer)-limit)<1e-7);
-   const firstText=first.map(p=>`${p.name}（該券商追加現股 ${fmt(p.other??0)} 萬）`).join('、');
    const threshold=n=>n===null?'沒有借款，不會因維持率追繳':n<=0?'目前已到保守門檻（質押166%／融資130%）':`約下跌 ${pct(n*100)} 才碰到保守門檻（質押166%／融資130%）`;
    lines.push(`【${m.name}】`,
     `① 目前不追加股票、不動用現金：${threshold(c.current)}。`,
-    `② 各券商各自投入全部未設質現股（合計 ${fmt(c.stockAmount)} 萬，不跨券商調用）：${first.length?firstText+' 最早碰到保守門檻（質押166%／融資130%），'+threshold(c.stocks):threshold(c.stocks)}。其他券商的現股不能直接提高這個帳戶的維持率。`,
-    `③ 再動用現金 ${fmt(c.cashAmount)} 萬還款：估計可支援到股票下跌 ${pct(Math.floor(c.cash*10000+1e-7)/100)}。以質押166%、融資130%為各自補款目標，且淨資產未轉負。`,
+    `② 先動用現金 ${fmt(c.cashAmount)} 萬還款，不投入現股：估計可扛股票下跌 ${pct(Math.floor(c.cashOnly*10000+1e-7)/100)}。`,
+    `③ 現金不足時，才將各券商未設質現股投入擔保（可用合計 ${fmt(c.stockAmount)} 萬，不跨券商調用）：現金＋現股估計最多可扛下跌 ${pct(Math.floor(c.cash*10000+1e-7)/100)}。質押維持166%、融資維持130%。`,
     `④ 曝險倍數：${c.leverage===null?'淨資產非正，無法計算，需優先檢視借款。':`${fmt(c.leverage)} 倍。股票跌10%，目前淨資產約減少 ${pct(c.leverage*10)}。${c.leverage>1?'損失會被放大；倍數越高，淨資產縮水越快。':'現金降低了股票對整體淨資產的影響。'}`}`,
     '安全判斷：倍數本身不能保證安全，要一起看可跌幅、現金缺口與持股集中程度。',
-    `股票下跌 ${pct(drop*100)}：${v.label}（現股情境假設預先投入）。`,
-    `原部位補至各自門檻需還 ${fmt(v.original.repay)} 萬；加現股補至各自門檻需還 ${fmt(v.stocks.repay)} 萬；達質押166%／融資130%的支援目標需還 ${fmt(v.support.repay)} 萬，再用現金仍缺 ${fmt(v.support.cashGap)} 萬。`,
+    `股票下跌 ${pct(drop*100)}：${v.label}（先用現金，必要時才抵繳現股）。`,
+    `原部位需還 ${fmt(v.original.repay)} 萬；先用現金 ${fmt(v.cashUsed)} 萬，仍需還 ${fmt(v.afterCashGap)} 萬；${!v.needsStock?'不需動用現股':v.support.cashGap>0?'再投入現股仍缺 '+fmt(v.support.cashGap)+' 萬':'現股可補足剩餘缺口'}。`,
     `目前股票 ${fmt(now.stock)} 萬、借款 ${fmt(now.debt)} 萬、淨資產 ${fmt(now.equity)} 萬。`,
     '三種可扛跌幅皆要求質押166%、融資130%；現金支援為低點估算，未模擬沿途多次補款。',
     '股票含未設質現股同步下跌；現金限同一人調用。實際追繳依契約與到帳時間。','');continue;

@@ -8,6 +8,7 @@ const D=require('./dist/data.js');
 const scoped=D.accounts({cash:0,other:0,debtOther:0,pools:[{name:'無借款',cash:0,other:900,value:0,debt:0},{name:'券商 A',cash:0,other:10,value:150,debt:100},{name:'券商 B',cash:0,other:500,value:300,debt:100}]});
 const summary=S.generate([{name:'測試',data:scoped}],.3);
 assert.match(summary,/合計 1,410 萬，不跨券商調用/);
-assert.match(summary,/券商 A（該券商追加現股 10 萬） 最早碰到保守門檻/);
+assert.ok(summary.indexOf('② 先動用現金')<summary.indexOf('③ 現金不足時')); 
+assert.match(summary,/先用現金 0 萬/);
 assert.doesNotMatch(summary,/券商 A（該券商追加現股 900/);
 console.log('Passed: total unpledged stock distinguished from first-call broker own stock, including debt-free accounts.');

@@ -44,23 +44,22 @@ function capacity(s){
  const set=on=>({...s,usePledge:on,pools:s.pools.map(p=>({...p,pledge:p.other??p.pledge??0}))});
  const first=t=>{const ps=calculate(t).pools.filter(p=>p.debt>0);return ps.length?Math.max(0,Math.min(...ps.map(p=>p.value>0?p.buffer:0))):null;};
  const base=set(false),extra=set(true),now=calculate(base);
- let lo=0,hi=1;
- const passes=d=>{const r=calculate(extra,d,true);return r.cashGap<=1e-8&&r.equity>=-1e-8;};
- if(passes(0)){for(let i=0;i<60;i++){const mid=(lo+hi)/2;if(passes(mid))lo=mid;else hi=mid;}}
+ const limit=t=>{let lo=0,hi=1;const passes=d=>{const r=calculate(t,d,true);return r.cashGap<=1e-8&&r.equity>=-1e-8;};if(passes(0)){for(let i=0;i<60;i++){const mid=(lo+hi)/2;if(passes(mid))lo=mid;else hi=mid;}}return lo;};
+ const cashOnly=limit(base),lo=limit(extra);
  const equityLimit=now.stock>0?Math.max(0,Math.min(1,now.equity/now.stock)):1;
- return {current:first(base),stocks:first(extra),cash:lo,equityLimit,leverage:now.leverage,cashAmount:s.cash,stockAmount:s.other};
+ return {current:first(base),stocks:first(extra),cash:lo,cashOnly,equityLimit,leverage:now.leverage,cashAmount:s.cash,stockAmount:s.other};
 }
 function readiness(s,drop){
  const staged=on=>({...s,usePledge:on,pools:s.pools.map(p=>({...p,pledge:p.other??p.pledge??0}))});
  const original=calculate(staged(false),drop),stocks=calculate(staged(true),drop),present=calculate(staged(false)),support=calculate(staged(true),drop,true);
  let label,tone;
  if(support.equity<=0&&support.debt>0){label='淨資產非正';tone='danger';}
- else if(support.cashGap>1e-8){label=!original.breached?'未追繳，但保守目標不足':!stocks.breached?'現股可免追繳，但保守目標不足':'現股＋現金仍不足';tone='danger';}
- else if(!original.breached){label=support.repay>1e-8?'未追繳；達支援目標需現金':'原部位可承受';tone=support.repay>1e-8?'warning':'safe';}
- else if(!stocks.breached){label=support.repay>1e-8?'現股可免追繳；目標需現金':'追加現股後足夠';tone='warning';}
- else if(support.cashGap<=1e-8){label='現股＋現金可支援';tone='warning';}
- else{label='現股＋現金仍不足';tone='danger';}
- return {original,stocks,support,present,label,tone,capacity:capacity(s)};
+ else if(!original.breached){label='原部位可承受';tone='safe';}
+ else if(original.cashGap<=1e-8){label='現金即可補足';tone='warning';}
+ else if(support.cashGap<=1e-8){label='現金不足，需現股抵繳';tone='warning';}
+ else{label='現金＋現股仍不足';tone='danger';}
+
+ return {original,stocks,support,present,cashUsed:Math.min(s.cash,original.repay),afterCashGap:original.cashGap,needsStock:original.cashGap>1e-8,label,tone,capacity:capacity(s)};
 }
 root.RiskEngine={calculate,validate,family,verdict,capacity,readiness};if(typeof module!=='undefined')module.exports=root.RiskEngine;
 })(typeof window!=='undefined'?window:globalThis);
