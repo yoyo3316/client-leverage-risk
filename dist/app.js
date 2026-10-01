@@ -33,7 +33,13 @@ function render(){
  $('stress').innerHTML=`<div class="verdict ${verdict.tone}"><strong>${verdict.label}</strong><span>${total.breached?total.breached+' 個帳戶低於130%':''}${total.cashGap>0?' · 缺口 '+fmt(total.cashGap)+' 萬':''}${zeroOwners.length?' · '+esc(zeroOwners.join('、'))+'淨資產非正':''}${!total.breached&&!zeroOwners.length?'目前情境尚未低於追繳門檻':''}</span></div>`;
  $('summary').innerHTML=[['情境後家庭淨資產',fmt(total.equity)+' 萬','目前 '+fmt(totalNow.equity)+' 萬'],['需償還本金',fmt(total.repay)+' 萬','低於門檻帳戶還款至166%'],['各成員現金缺口',fmt(total.cashGap)+' 萬','不跨成員互抵'],['最早追繳可跌',distance===null?'無借款':pct(distance),'包含已啟用的追加股票擔保']].map(([a,b,c])=>`<div class="metric"><span>${a}</span><strong>${b}</strong><small>${c}</small></div>`).join('');
  now.pools.forEach((p,i)=>{const q=r.pools[i],el=$('result'+i);el.className='status '+(q.breach?'danger':p.breach?'warning':'');el.innerHTML=`<div class="accountStatus"><span>${state.usePledge?'追加後':'目前'}維持率 <b>${p.ratio===null?'無借款':pct(p.ratio)}</b></span><span>可跌 <b>${p.debt===0?'—':pct(buffer(p))}</b></span></div><small>跌 ${pct(drop*100)} 後 ${q.ratio===null?'無借款':pct(q.ratio)}${q.breach?' · 需補款':' · 未觸發追繳'}</small>`;});
- $('pledgeComparison').innerHTML=family.map(m=>{const before=RiskEngine.calculate({...m.data,usePledge:false}),after=RiskEngine.calculate({...m.data,usePledge:true});const gap=r=>{const ps=r.pools.filter(p=>p.debt>0);return ps.length?pct(Math.min(...ps.map(buffer))):'無借款';};return `<div><b>${esc(m.name)}</b>：最早追繳可跌 ${gap(before)} → ${gap(after)} · 追加 ${fmt(m.data.pools.reduce((n,p)=>n+(p.pledge||0),0))} 萬${m.data.usePledge?'（已啟用）':'（未啟用）'}</div>`;}).join('');
+ $('pledgeComparison').innerHTML=family.map(m=>{
+  const before=RiskEngine.calculate({...m.data,usePledge:false}),after=RiskEngine.calculate({...m.data,usePledge:true});
+  const limiting=r=>{const ps=r.pools.filter(p=>p.debt>0);if(!ps.length)return null;return ps.reduce((a,p)=>buffer(p)<buffer(a)?p:a);};
+  const a=limiting(before),b=limiting(after),allocated=m.data.pools.reduce((n,p)=>n+(p.pledge||0),0);
+  const rows=before.pools.map((p,i)=>{const q=after.pools[i];return `<tr><td>${esc(p.name)}${b===q?' · 限制帳戶':''}</td><td>${fmt(m.data.pools[i].pledge||0)}</td><td>${p.ratio===null?'無借款':pct(p.ratio)}</td><td>${q.ratio===null?'無借款':pct(q.ratio)}</td><td>${p.debt===0?'—':pct(buffer(p))}</td><td>${q.debt===0?'—':pct(buffer(q))}</td></tr>`;}).join('');
+  return `<div><b>${esc(m.name)}</b>：第一個帳戶追繳跌幅 ${a?pct(buffer(a)):'無借款'} → ${b?pct(buffer(b)):'無借款'} · 追加 ${fmt(allocated)} 萬${m.data.usePledge?'（已套用）':'（下表為預覽，尚未套用）'}${b?`<p class="hint">追加後限制帳戶：<b>${esc(b.name)}</b>。再增加其他帳戶的擔保，不會提高此門檻；需改善限制帳戶。此比較依部位即時更新，不隨情境滑桿改變。</p>`:''}<div class="tablewrap"><table><thead><tr><th>帳戶</th><th>追加股票</th><th>原維持率</th><th>追加後維持率</th><th>原可跌</th><th>追加後可跌</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+ }).join('');
  drawCurve(totalNow,total,drop,distance);
  renderOverview(totalNow,total,drop);
  renderHistory(event);
