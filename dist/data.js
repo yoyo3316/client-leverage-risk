@@ -6,9 +6,10 @@ function normalize(raw){
  const members=source.map(m=>{
   if(!m||typeof m.name!=='string'||m.name.length>60)throw Error('成員名稱最多60字');
   root.RiskEngine.validate(m.data);
-  return {name:m.name,data:{cash:m.data.cash,other:m.data.other,debtOther:m.data.debtOther,...(m.data.usePledge!==undefined?{usePledge:!!m.data.usePledge}:{}),pools:m.data.pools.map(p=>{
+  return {name:m.name,...(m.planning?{planning:root.RiskPlanning.normalize(m.planning)}:{}),data:{cash:m.data.cash,other:m.data.other,debtOther:m.data.debtOther,...(m.data.usePledge!==undefined?{usePledge:!!m.data.usePledge}:{}),pools:m.data.pools.map(p=>{
    if(p.name.length>120)throw Error('帳戶名稱最多120字');
-   return {name:p.name,type:p.type,value:p.value,debt:p.debt,...(p.pledgeValue!==undefined?{pledgeValue:p.pledgeValue,pledgeDebt:p.pledgeDebt,marginValue:p.marginValue,marginDebt:p.marginDebt,legacyCombined:!!p.legacyCombined}:{}),...(p.cash!==undefined?{cash:p.cash,other:p.other,usePledge:!!p.usePledge}:{}),trigger:130,target:166,...(p.pledge!==undefined?{pledge:p.pledge}:{})};
+   if(p.pledgeRate!==undefined&&(!Number.isFinite(p.pledgeRate)||p.pledgeRate<0||p.pledgeRate>100))throw Error('質押年利率需介於0至100%');
+   return {...(p.pledgeRate!==undefined?{pledgeRate:p.pledgeRate}:{}),name:p.name,type:p.type,value:p.value,debt:p.debt,...(p.pledgeValue!==undefined?{pledgeValue:p.pledgeValue,pledgeDebt:p.pledgeDebt,marginValue:p.marginValue,marginDebt:p.marginDebt,legacyCombined:!!p.legacyCombined}:{}),...(p.cash!==undefined?{cash:p.cash,other:p.other,usePledge:!!p.usePledge}:{}),trigger:130,target:166,...(p.pledge!==undefined?{pledge:p.pledge}:{})};
   })}};
  });
  const result={version:2,date:/^\d{4}-\d{2}-\d{2}$/.test(raw.date)?raw.date:'',mode:raw.mode==='示範'?'示範':'使用者輸入',drop:Number.isFinite(raw.drop)&&raw.drop>=0&&raw.drop<=60?raw.drop:20,members};
