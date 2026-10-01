@@ -23,13 +23,15 @@ function inputs(){
  const s=selected();$('usePledge').checked=broker>=0&&s.usePledge;$('usePledge').disabled=broker<0;
  for(const key of ['cash','other','debtOther']){$(key).value=s[key];$(key).disabled=broker<0;}
  $('brokerName').value=broker>=0?state.pools[broker].name:'';
- $('pools').innerHTML=broker<0?'<p class="notice">整合模式只供查閱。選擇券商後分別輸入現金、現股、質押與融資，系統自動加總。</p>':`<article class="pool">${state.pools[broker].legacyCombined?'<p class="notice">舊合計部位暫列質押欄，請依實際資料拆分；總市值與借款沒有改變。</p>':''}${[['質押',[['pledgeValue','質押抵押品市值'],['pledgeDebt','質押借款金額']]],['融資',[['marginValue','融資股票市值'],['marginDebt','融資借款金額']]]].map(([title,fields])=>`<h3>${title}</h3><div class="fields">${fields.map(([key,label])=>`<label>${label}<input type="number" min="0" step="0.01" data-i="${broker}" data-key="${key}" value="${state.pools[broker][key]}"></label>`).join('')}</div>`).join('')}<p id="brokerAutoTotal" class="notice"></p><div id="result0" class="status"></div></article>`;
+ $('pools').innerHTML=broker<0?'<p class="notice">整合模式只供查閱。選擇券商後分別輸入現金、現股、質押與融資，系統自動加總。</p>':`<article class="pool">${state.pools[broker].legacyCombined?'<p class="notice">舊合計部位暫列質押欄，請依實際資料拆分；總市值與借款沒有改變。</p><button data-confirm-split="true">已核對質押與融資拆分</button>':''}${[['質押',[['pledgeValue','質押抵押品市值'],['pledgeDebt','質押借款金額']]],['融資',[['marginValue','融資股票市值'],['marginDebt','融資借款金額']]]].map(([title,fields])=>`<h3>${title}</h3><div class="fields">${fields.map(([key,label])=>`<label>${label}<input type="number" min="0" step="0.01" data-i="${broker}" data-key="${key}" value="${state.pools[broker][key]}"></label>`).join('')}</div>`).join('')}<p id="brokerAutoTotal" class="notice"></p><div id="result0" class="status"></div></article>`;
  render();
 }
 function buffer(p){return p.debt===0?null:p.value>0?Math.max(0,p.buffer*100):0;}
 function viewVerdict(r){const v=RiskEngine.verdict(r);return {...v,label:v.label==='未觸發追繳'?'各券商擔保足夠':v.label==='現金足以補款'?'需補款，可用現金足夠':v.label};}
 function render(){
  family[active].data=state;family.forEach(m=>RiskData.sync(m.data));
+ const legacy=family.flatMap((m,i)=>m.data.pools.filter(p=>p.legacyCombined).map(p=>({member:i,name:m.name,broker:m.data.pools.indexOf(p),account:p.name})));
+ $('dataChecks').hidden=legacy.length===0;$('dataChecks').innerHTML=legacy.length?'<strong>部位待核對：'+legacy.length+' 個券商尚未確認拆分</strong><p>舊合計數字暫列質押，請依實際部位拆分質押與融資，再按「已核對質押與融資拆分」。</p>'+legacy.map(x=>`<button data-review-member="${x.member}" data-review-broker="${x.broker}">核對 ${esc(x.name)}／${esc(x.account)}</button>`).join(''):'';
  try{family.forEach(m=>RiskEngine.validate(m.data));$('error').textContent='';}
  catch(e){$('error').textContent=e.message;for(const id of ['plainConclusion','familyAssets','brokerOverview','summary','overview','comparison','fundingChart','history','chart','pledgeComparison','currentIndicators'])$(id).innerHTML='';$('stress').textContent='請先修正輸入，再看試算結果。';$('familyStats').textContent='';$('selectedEvent').textContent='';$('historySource').textContent='';$('clientSummary').value='輸入有誤，請先修正再產生摘要。';$('summaryContext').textContent='';state.pools.forEach((p,i)=>{if($('result'+i))$('result'+i).textContent='請先修正輸入';});return;}
  if($('brokerAutoTotal'))$('brokerAutoTotal').textContent='自動合計：擔保市值 '+fmt(state.pools[broker].value)+' 萬／借款 '+fmt(state.pools[broker].debt)+' 萬';
@@ -89,8 +91,8 @@ function renderHistory(selectedEvent){
  $('historySource').innerHTML=list.map(e=>`<div>${esc(e.title)}：${fmt(e.peak)} → ${fmt(e.trough)} 點（收盤跌幅 ${pct(e.dropPercent)}） · ${e.sources.map(s=>`<a href="${s.url}" target="_blank" rel="noopener noreferrer">${esc(s.label)}</a>`).join('、')}</div>`).join('');
 }
 for(const key of ['cash','other','debtOther'])$(key).addEventListener('input',e=>{if(broker<0)return;state.pools[broker][key]=e.target.value===''?NaN:Number(e.target.value);mark();render();});
-$('pools').addEventListener('input',e=>{const {i,key}=e.target.dataset;if(key){state.pools[+i][key]=['name','type'].includes(key)?e.target.value:e.target.value===''?NaN:Number(e.target.value);state.pools[+i].legacyCombined=false;mark();render();}});
-$('pools').addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){state.pools.splice(+e.target.dataset.remove,1);mark();inputs();}});
+$('pools').addEventListener('input',e=>{const {i,key}=e.target.dataset;if(key){state.pools[+i][key]=['name','type'].includes(key)?e.target.value:e.target.value===''?NaN:Number(e.target.value);mark();render();}});
+$('pools').addEventListener('click',e=>{if(e.target.dataset.confirmSplit){state.pools[broker].legacyCombined=false;mark();inputs();document.dispatchEvent(new Event('change',{bubbles:true}));return;}if(e.target.dataset.remove!==undefined){state.pools.splice(+e.target.dataset.remove,1);mark();inputs();}});
 $('add').onclick=()=>{if(state.pools.length>=100){$('error').textContent='每位成員最多100個帳戶';return;}state.pools.push({name:'新券商',type:'質押',value:0,debt:0,cash:0,other:0,usePledge:false});broker=state.pools.length-1;mark();inputs();};
 $('usePledge').onchange=e=>{if(broker<0)return;state.pools[broker].usePledge=e.target.checked;mark();inputs();};
 $('drop').oninput=render;
@@ -106,6 +108,7 @@ $('addMember').onclick=()=>{if(family.length>=30){$('error').textContent='最多
 $('removeMember').onclick=()=>{if(family.length===1){$('error').textContent='至少保留一位成員；可使用清空移除數據';return;}if(!confirm('刪除「'+(family[active].name||'未命名成員')+'」與其帳戶？'))return;family.splice(active,1);active=Math.min(active,family.length-1);state=family[active].data;broker=-1;mark();inputs();};
 $('date').addEventListener('input',render);
 $('copySummary').onclick=async()=>{if($('error').textContent){$('copyStatus').textContent='請先修正輸入。';return;}try{await navigator.clipboard.writeText($('clientSummary').value);$('copyStatus').textContent='已複製摘要，可貼給客戶。';}catch{$('clientSummary').focus();$('clientSummary').select();$('copyStatus').textContent='請長按或使用 Ctrl+C 複製選取文字。';}};
+$('dataChecks').onclick=e=>{const b=e.target.closest('[data-review-member]');if(b){active=Number(b.dataset.reviewMember);state=family[active].data;broker=Number(b.dataset.reviewBroker);inputs();$('broker').focus();}};
 $('brokerOverview').onclick=e=>{const b=e.target.closest('[data-broker]');if(b){broker=Number(b.dataset.broker);inputs();$('broker').focus();}};
 $('broker').onchange=e=>{broker=Number(e.target.value);inputs();};
 $('brokerName').oninput=e=>{state.pools[broker].name=e.target.value;$('broker').options[broker+1].textContent=e.target.value||'未命名券商';mark();render();};

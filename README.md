@@ -1,87 +1,35 @@
-# 客戶槓桿風險儀表板
-
-繁體中文、靜態前端，使用 Supabase Auth 與資料庫提供私人雲端儲存。供營業員與客戶共同檢視中信、凱基及其他機構融資／質押借款。示範數字為虛構。
-
-## 功能
-- 每一融資或質押擔保池獨立計算維持率、追繳距離。
-- 彙總股票曝險倍數、淨資產與債務資產比。
-- 0–60% 同步下跌試算與情境表、淨資產圖。
-- 分別估算新增合格擔保及現金還本金至目標所需金額。
-- JSON匯入匯出、列印、手機版。
-
-## 本機使用與測試
-直接開啟 `dist/index.html`，或 `python3 -m http.server 8000 --directory dist`。
-執行 `node test.cjs && node data-test.cjs && node cloud-test.cjs`。
-
-## GitHub Pages
-將專案上傳至自己的GitHub repository，Settings → Pages → Source 選 GitHub Actions。本專案已有 `.github/workflows/pages.yml`，以 `dist` 為靜態發布目錄。啟用後重新執行 workflow 即可。Github Pages網址可能公開，不要把真實客戶JSON、截圖或報告提交進repository。
-
-## 計算邏輯
-所有金額單位為新台幣萬元。每筆擔保股票只能歸屬一個池；未設質現股不得重複列計。融資借款與質押借款都只列本金，不能將同筆借款重複填入「其他借款」。
-
-維持率分母為該池借款，分子為擔保股票市值。擔保股票按當下市值100%認列，不乘核貸成數；不適用另外折價認列的契約。
-
-股價下跌只影響股票市值。還款需求只彙總壓力後低於門檻的池；假設全數可動用現金能在期限內調度。新增擔保與償還本金兩方案不可加總；出售擔保股票還款不是本工具模擬方案。融券、期貨、選擇權及負債幣別風險不適用此模型。
-
-追繳門檻固定130%、回復目標固定166%，舊檔的trigger／target也會統一套用此值。不適用其他門檻的銀行契約。門檻碰觸不等於立即斷頭，應查實際追繳通知、期限、除權息設算、利息與擔保品規則。風險色彩僅代表門檻距離（少於20%為提示），不是投資安全評級或倒閉預測。
-
-官方參考（2026/10/01）：
-- https://www.kgi.com.tw/zh-tw/support-index/faq
-- https://investoredu.twse.com.tw/pages/TWSE_InvestmentQA.aspx?ID=4
-
-## 隱私與雲端儲存
-使用者按下儲存時才將部位上傳至 Supabase；未儲存的部位只在頁面記憶體中。公開 GitHub 專案不包含客戶資料、管理者Email、資料庫密碼或service-role key。前端publishable key是公開連線識別，不授予資料存取權。
-
-資料庫RLS同時檢查登入者UID與私人管理者名單。未登入訪客、其他登入帳號無法讀取或寫入檔案。登入狀態保存在此裝置的localStorage；登出會清除頁面部位。共用裝置使用完請登出。自行匯出檔案及列印內容由使用者保管。
-
-每份檔案包含所有家庭成員、各券商帳戶、基準日及跌幅。可建立多份檔案、更新或另存新檔；載入不會自動覆寫未儲存變更。更新以revision檢查衝突，其他視窗修改過的版本不會被直接覆蓋。雲端不提供永久刪除按鈕。
-
-## Supabase 初次設定
-1. 使用免費專案，啟用Data API及自動RLS，關閉Automatically expose new tables。
-2. 在SQL Editor執行`supabase/schema.sql`，先將OWNER_EMAIL換成管理者Email（不可提交含真實Email的SQL至公開repo）。
-3. Authentication的Site URL設為正式GitHub Pages網址，Email登入連結回到同一網址。
-4. 預設郵件服務限專案團隊成員；管理者可使用相同Email登入。擴大使用者前應另外設定SMTP、私人授權名單與信件送達測試。
-5. `dist/cloud.js`只放專案URL與publishable key。資料庫密碼、secret/service-role key不可放在前端。
-
-SDK固定為Supabase JS 2.117.1，瀏覽器UMD檔隨本站部署於`dist/supabase.js`，不依赖訪客載入第三方CDN。SDK授權見`SUPABASE-LICENSE`。
-
-## 授權
-MIT，見 LICENSE。
-
-## 家庭多帳號
-新增成員後，可在其名下增加多個券商融資／質押擔保池。家庭总覽逐帳戶顯示維持率與追繳距離，並比較各成員淨資產。現金缺口逐成員計算後加總，不假設跨持有人資金可即時調度。JSON v2含members；舊版v1資料可匯入為單一成員。未儲存的數據仍只存在頁面記憶體。
-
-股票擔保計值欄位已移除。舊JSON中的collateral欄位忽略，统一依value（股票市值）計算維持率與追繳距離。
-
-固定擔保欄位已移除，舊JSON的fixed欄位忽略。
-
-## 歷史股災壓力情境
-2008金融海嘯（2008/05/19–11/20、9295.20→4089.93、跌56.00%）、2020疫情急跌（2020/01/14–03/19、12179.81→8681.34、跌28.72%）、2022升息熊市（2022/01/04–10/25、18526.35→12666.12、跌31.63%）。資料採加權指數收盤值，跌幅為1－低點÷高點，四捨五入至小數2位。來源連結保存在dist/history.js及網站情境說明中。2008與2022採當年高點至後續低點，2020採疫情前高點至疫情低點；非年度報酬率。
-
-把历史跌幅套用至目前部位，假設所有股票同步下跌，借款本金固定，期間不補款、不賣股。此為低點壓力快照，非逐日歷史回測，不使用客戶過往交易或持股歷史。若所有低於130%帳戶需還本金至166%，按每位成員可動用現金計算缺口，不跨家庭持有人抵銷。
-
-結果以「未觸發追繳／現金足以補款／現金不足／淨資產非正」表示模型條件，不表示保證安全或預測斷頭。圖表顯示家庭淨資產跌幅曲線、最早追繳距離、成員前後淨資產與補款資金比較。詳細帳戶表、跌幅表與雲端工具可展開查看。
-
-## 追加股票擔保試算
-每位成員可勾選啟用，將「未設質現股」分配到各帳戶的追加擔保欄位。分配總額不得超過该成員未設質現股；股票移入擔保後不重複計入家庭資產，不增加借款。假設在股災前押入，所有股票同步下跌，維持率仍按100%市值認列；不代表券商實際接受任何股票作擔保。雲端與JSON保留分配與啟用狀態。
-
-## 跨裝置登入
-手機點登入信只會登入手機。電腦可直接開信中連結，或先在手機長按複製尚未使用的登入連結，貼到電腦的驗證欄位。前端只接受此 Supabase 專案的原始驗證網址，使用官方 verifyOtp 在目前裝置建立 session，不儲存或上傳連結到資料表。已消耗連結需重新寄送。免費預設信模板不提供驗證碼，沒有啟用驗證碼功能。
-
-## 密碼登入
-預設採官方 signInWithPassword，不寄登入信。既有 Magic Link 使用者可在已登入裝置以 updateUser 設定至少8字密碼，兩次輸入需相符。密碼只送至 Supabase Auth，不寫入 risk_cases、JSON匯出或日誌；完成請求即清空密碼欄位。首次登入及忘記密碼仍可使用登入信；寄信限制仍適用。密碼設定由使用者自行操作，後台管理者密碼與網站密碼無關。
-
-## 成員合計模式
-輸入擔保股票總市值、總借款、未設質現股、可動用現金。載入舊檔時合併各融資/質押帳戶的市值與借款，其他投資借款亦納入總借款；淨資產保持不變。追加模式使用全部未設質現股，取代舊版指定分配。結果為成員整體支援能力的估算，不預測各券商追繳時間；假設股票可及時移作擔保。不同成員現金不互抵。
-
-## 客戶文字摘要
-頁面底部依目前基準日、跌幅與各成員追加設定生成摘要，可手動複製。列示借款/總資產、股票曝險/淨資產、維持率、可支援跌幅、還款需求與現金缺口。不使用任意風險分數，淨資產非正時不顯示無意義的曝險倍數；僅提供成員合計估算，無法評估個別券商帳戶。下方總覽與圖表明示所選跌幅。
-
-## 以選取成員為主的閱讀順序
-右方現況指標、下跌試算、淨資產曲線、股災卡片與客戶摘要只計算目前成員。未設質現股追加只屬於本人；家庭比較置於後段摺疊區，沒有家庭最小門檻或合計資金池。已確認的小額移轉請調整雙方資料以免重複計入。
-
-## 券商分別與整合查閱
-每位成員可新增多個券商帳戶。整合總覽與個別券商的曲線、歷史壓力測試、文字摘要隨查看範圍切換。各券商分開輸入現金、未設質現股、質押抵押品與借款、融資股票與借款，系統自動合計。個別券商查看本帳戶現金；整合總覽同一人現金可跨券商支援，不跨成員調用。擔保股票仍分券商計算。舊合計數字保留在原帳戶，需要使用者自行拆分；舊多帳戶現金與未設質現股暫列第一個帳戶，請核對分配。所有帳戶與設定仍只在手動儲存時上傳私人雲端。
-
-## 家族資產儀表板與三階段承受度
-移除重複帳戶明細與更多跌幅，家族總覽直接列各成員資產、倍數和三階段承受度。不追加與追加現股兩項表示最早130%追繳門檻；現股加現金表示在低點補款還至166%且淨資產非負的最大跌幅，用單調二分搜尋計算，並非逐日股災存活回測。各券商股票不互抵，同一人現金可調用，跨成員現金隔離。倍數用股票跌10%對淨資產影響解釋，沒有任意安全評分。
+const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+const elements=new Map(),requests=[],plans=[],listeners={};
+function el(id){if(!elements.has(id))elements.set(id,{value:'',hidden:false,disabled:false,textContent:'',classList:{toggle(){}},replaceChildren(...x){this.options=x;},add(x){(this.options||=[]).push(x);},addEventListener(){},checkValidity(){return true;}});return elements.get(id);}
+el('date').value='2026-10-01';el('drop').value='20';
+const sdk={auth:{onAuthStateChange(){},async getSession(){return {data:{session:{user:{id:'owner-id',email:'qa@example.invalid'}}}};},async signOut(){return {};},async signInWithOtp(){return {};},async signInWithPassword(args){sdk.passwordLogin=args;return {};},async updateUser(args){sdk.passwordUpdate=args;return {};},async verifyOtp(args){sdk.verified=args;return {};}},from(table){const q={table,op:'select',filters:[]};const chain={select(columns){q.columns=columns;return chain;},eq(k,v){q.filters.push([k,v]);return chain;},order(){return chain;},limit(){return chain;},maybeSingle(){return chain;},insert(row){q.op='insert';q.row=row;return chain;},update(row){q.op='update';q.row=row;return chain;},then(resolve,reject){requests.push(q);let plan=plans.shift()||{data:[],error:null};try{Promise.resolve(typeof plan==='function'?plan(q):plan).then(resolve,reject);}catch(e){reject(e);}}};return chain;}};
+const context=vm.createContext({console,URL,TextEncoder,setTimeout,Option:function(text,value){this.text=text;this.value=value;},confirm:()=>true,document:{getElementById:el,addEventListener(type,fn){listeners[type]=fn;}},mode:'使用者輸入',family:[{name:'家庭QA',data:{cash:10,other:50,debtOther:0,pools:[{name:'QA',type:'融資',value:100,debt:50,trigger:130,target:166,fixed:500}]}}],active:0,mark(){context.mode='使用者輸入';},inputs(){},addEventListener(){},supabase:{createClient(){return sdk;}}});context.window=context;
+vm.runInContext(fs.readFileSync('dist/engine.js','utf8'),context);vm.runInContext(fs.readFileSync('dist/data.js','utf8'),context);
+const meta={id:'case-1',name:'QA',revision:7,updated_at:'2026-10-01T00:00:00Z'};
+(async()=>{
+ await vm.runInContext(fs.readFileSync('dist/cloud.js','utf8'),context);
+ assert.equal(el('cloudWorkspace').hidden,false);
+ const originalRequestCount=requests.length;listeners.input();assert.equal(requests.length,originalRequestCount,'editing never auto-uploads');
+ el('caseName').value=' QA ';plans.push({data:[meta]},{data:[meta]});await el('saveCloud').onclick();
+ const insert=requests.find(q=>q.op==='insert');assert.equal(insert.row.user_id,'owner-id');assert.equal(insert.row.name,'QA');assert.equal(insert.row.payload.members[0].data.pools[0].fixed,undefined);assert.match(el('cloudStatus').textContent,/已儲存/);
+ context.family[0].data.cash=11;plans.push({data:[]});await el('saveCloud').onclick();const update=requests.at(-1);assert.equal(update.op,'update');assert.ok(update.filters.some(([k,v])=>k==='revision'&&v===7));assert.match(el('cloudStatus').textContent,/其他視窗更新/);
+ context.family[0].data.cash=NaN;const beforeInvalid=requests.length;await el('saveCloud').onclick();assert.equal(requests.length,beforeInvalid);assert.match(el('cloudStatus').textContent,/非負數/);context.family[0].data.cash=11;
+ el('caseList').value='case-1';plans.push({data:{...meta,payload:{version:2,members:[]}}});await el('loadCloud').onclick();assert.equal(context.family[0].data.cash,11,'invalid remote data must not replace workspace');
+ const payload={version:2,date:'2026-09-30',mode:'使用者輸入',drop:35,members:[{name:'載入QA',data:{cash:88,other:0,debtOther:0,pools:[]}}]};plans.push({data:{...meta,payload}});await el('loadCloud').onclick();assert.equal(context.family[0].data.cash,88);assert.equal(el('drop').value,35);assert.equal(el('date').value,'2026-09-30');assert.match(el('cloudStatus').textContent,/已載入/);
+ let release;plans.push(()=>new Promise(resolve=>{release=resolve;}),{data:[{...meta,revision:8}]});el('caseName').value='QA';const pending=el('saveCloud').onclick();await new Promise(resolve=>setImmediate(resolve));context.family[0].data.cash=99;release({data:[{...meta,revision:8}]});await pending;assert.match(el('cloudStatus').textContent,/新變更尚未上傳/);
+ assert.match(el('saveBadge').textContent,/未儲存/);assert.match(el('lastSaved').textContent,/最後儲存/);
+ context.confirm=()=>false;const beforeCancel=requests.length;await el('deleteCloud').onclick();assert.equal(requests.length,beforeCancel,'cancelled trash operation must not send requests');context.confirm=()=>true;
+ const oldPayload={version:2,date:'2026-10-01',members:JSON.parse(JSON.stringify(context.family))};
+ plans.push({data:{...meta,revision:8,payload:oldPayload}},{data:[{...meta,revision:9}]},{data:[{...meta,revision:9,trashed:'true'}]});await el('deleteCloud').onclick();
+ const archive=requests.at(-2);assert.equal(archive.op,'update');assert.equal(archive.row.payload._trashed,true);assert.ok(archive.filters.some(([k,v])=>k==='user_id'&&v==='owner-id'));assert.ok(archive.filters.some(([k,v])=>k==='revision'&&v===8));assert.equal(context.family[0].data.cash,99,'trash keeps current workspace');assert.match(el('cloudStatus').textContent,/移至垃圾桶/);assert.match(el('lastSaved').textContent,/新草稿/);
+ el('caseArea').value='trash';el('caseArea').onchange();el('caseList').value='case-1';el('caseList').onchange();assert.equal(el('restoreCloud').hidden,false);assert.equal(el('loadCloud').disabled,true);
+ plans.push({data:{...meta,revision:9,payload:{...oldPayload,_trashed:true,_trashedAt:'2026-10-01'}}},{data:[{...meta,revision:10}]},{data:[{...meta,revision:10}]});await el('restoreCloud').onclick();assert.equal(requests.at(-2).row.payload._trashed,undefined);assert.equal(el('caseArea').value,'active');assert.match(el('cloudStatus').textContent,/已還原/);
+ plans.push({data:null});const beforeStale=requests.length;await el('deleteCloud').onclick();assert.equal(requests.length,beforeStale+1,'stale version cannot be overwritten');assert.match(el('cloudStatus').textContent,/其他視窗更新/);
+ el('passwordEmail').value='qa@example.invalid';el('loginPassword').value='synthetic-test-password';await el('passwordLogin').onsubmit({preventDefault(){}});assert.equal(sdk.passwordLogin.email,'qa@example.invalid');assert.equal(el('loginPassword').value,'');
+ el('newPassword').value='synthetic-test-password';el('confirmPassword').value='different';await el('passwordSetup').onsubmit({preventDefault(){}});assert.equal(sdk.passwordUpdate,undefined);assert.match(el('cloudStatus').textContent,/不一致/);
+ el('confirmPassword').value='synthetic-test-password';await el('passwordSetup').onsubmit({preventDefault(){}});assert.equal(sdk.passwordUpdate.password,'synthetic-test-password');assert.equal(el('newPassword').value,'');assert.equal(el('confirmPassword').value,'');assert.match(el('cloudStatus').textContent,/密碼已設定/);
+ el('loginToken').value='https://wrong.example/auth/v1/verify?token=fake&type=magiclink';await el('cloudVerify').onsubmit({preventDefault(){}});assert.equal(sdk.verified,undefined);assert.match(el('cloudStatus').textContent,/不接受其他網址/);
+ el('loginToken').value='https://wusjzebqdzcdoichuhcd.supabase.co/auth/v1/verify?token=synthetic-test-hash&type=magiclink';await el('cloudVerify').onsubmit({preventDefault(){}});assert.equal(sdk.verified.token_hash,'synthetic-test-hash');assert.equal(sdk.verified.type,'magiclink');assert.equal(el('loginToken').value,'');
+ await el('signOut').onclick();assert.equal(context.family[0].data.cash,0);assert.equal(el('cloudWorkspace').hidden,true);
+ console.log('Passed: manual-only cloud writes, ownership filters, stale revision conflict, invalid remote data, in-flight edit retention, sign-out clearing, save indicators, cancellable trash, restore, ownership and stale-revision protection.');
+})().catch(e=>{console.error(e);process.exitCode=1;});
