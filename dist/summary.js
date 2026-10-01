@@ -4,10 +4,18 @@ function generate(members,drop,date='',eventName=''){
  const lines=[`部位風險摘要｜基準日：${date||'未填寫'}`,`情境：全部股票同步下跌 ${pct(drop*100)}${eventName?'（'+eventName+'）':''}。金額單位：萬元。`,''];
  for(const m of members){
   if(m.data.pools.every(p=>p.cash!==undefined)){
-   const s=m.data,now=E.calculate(s),r=E.calculate(s,drop);
-   lines.push(`【${m.name}】`,`目前股票 ${fmt(now.stock)}、借款 ${fmt(now.debt)}、淨資產 ${fmt(now.equity)}、現金 ${fmt(s.cash)}。`,`借款／總資產 ${now.ltv===null?'無法計算':pct(now.ltv)}；股票曝險倍數 ${now.leverage===null?'淨資產非正':fmt(now.leverage)+' 倍'}。`);
-   now.pools.forEach((p,i)=>{const q=r.pools[i];lines.push(`  質押抵押品 ${fmt(p.pledgeValue)}、質押借款 ${fmt(p.pledgeDebt)}；融資股票 ${fmt(p.marginValue)}、融資借款 ${fmt(p.marginDebt)}。`,`• ${p.name}：擔保市值 ${fmt(p.value)}、借款 ${fmt(p.debt)}、維持率 ${p.ratio===null?'無借款':pct(p.ratio)}；可跌 ${p.debt?pct(Math.max(0,p.buffer*100)):'無借款'}。`,`  未設質現股 ${fmt(p.other)}、可用現金 ${fmt(p.cash)}、追加設定：${p.usePledge?'全投入':'未追加'}。`,`  股票下跌 ${pct(drop*100)} 後維持率 ${q.ratio===null?'無借款':pct(q.ratio)}；${q.breach?'需補款':'未觸發追繳'}，需還本金 ${fmt(q.breach?q.repay:0)}、調用前現金缺口 ${fmt(Math.max(0,(q.breach?q.repay:0)-p.cash))}。`);});
-   lines.push(`本範圍情境後淨資產 ${fmt(r.equity)}、需還本金 ${fmt(r.repay)}、整合現金缺口 ${fmt(r.cashGap)}。`, '各券商股票擔保獨立；整合時同一人的現金可互相調用，不跨成員支援。需確認現金可及時到帳。','');continue;
+   const s=m.data,now=E.calculate(s),r=E.calculate(s,drop),c=E.capacity(s);
+   const threshold=n=>n===null?'沒有借款，不會因維持率追繳':n<=0?'目前已到追繳門檻':`約下跌 ${pct(n*100)} 才碰到追繳門檻`;
+   lines.push(`【${m.name}】`,
+    `① 目前不追加股票、不動用現金：${threshold(c.current)}。`,
+    `② 把未設質現股 ${fmt(c.stockAmount)} 萬全部加入各自券商擔保後：${threshold(c.stocks)}。`,
+    `③ 再動用現金 ${fmt(c.cashAmount)} 萬還款：估計可支援到股票下跌 ${pct(Math.floor(c.cash*10000)/100)}。此時可能已追繳，但模型內現金仍足以補款，且淨資產未轉負。`,
+    `④ 曝險倍數：${c.leverage===null?'淨資產非正，無法計算，需優先檢視借款。':`${fmt(c.leverage)} 倍。股票跌10%，目前淨資產約減少 ${pct(c.leverage*10)}。${c.leverage>1?'損失會被放大；倍數越高，淨資產縮水越快。':'現金降低了股票對整體淨資產的影響。'}`}`,
+    '安全判斷：倍數本身不能保證安全，要一起看可跌幅、現金缺口與持股集中程度。',
+    `本次股票下跌 ${pct(drop*100)} 的情境，依目前勾選設定：${r.cashGap>0?`還需準備 ${fmt(r.cashGap)} 萬，現金不足。`:r.equity<=0&&r.debt>0?'淨資產已非正，即使可補款仍有資產耗盡風險。':r.breached?`已碰到補款門檻，需還 ${fmt(r.repay)} 萬，目前現金足夠。`:'未碰到補款門檻。'}`,
+    `目前股票 ${fmt(now.stock)} 萬、借款 ${fmt(now.debt)} 萬、淨資產 ${fmt(now.equity)} 萬。`,
+    '前兩項是「何時追繳」，第三項是「追繳後還能支援到哪裡」，不是同一個門檻。第三項是低點快照估算，未模擬沿途多次補款；不保證實際股災中能扛到該跌幅。',
+    '維持率以券商合計估算，實際需核對各質押／融資契約。現金可在同一人券商間調用；股票只加入所在券商，家人資金不互抵。假設全數股票同步下跌、擔保股票可及時投入、現金可及時到帳。','');continue;
   }
   const s=m.data,base=E.calculate({...s,usePledge:false}),now=E.calculate(s),r=E.calculate(s,drop),a=base.pools[0],b=now.pools[0];
   const ratio=p=>p?.ratio===null?'無借款':pct(p.ratio);

@@ -14,5 +14,15 @@ function family(members,drop=0){
  total.leverage=total.equity>0?total.stock/total.equity:null;return total;
 }
 function verdict(r){const negative=Array.isArray(r.members)?r.members.some(m=>m.result.equity<=0&&m.result.debt>0):r.equity<=0&&r.debt>0;return r.cashGap>0?{tone:'danger',label:'現金不足'}:negative?{tone:'danger',label:'淨資產非正'}:r.breached?{tone:'warning',label:'現金足以補款'}:{tone:'safe',label:'未觸發追繳'};}
-root.RiskEngine={calculate,validate,family,verdict};if(typeof module!=='undefined')module.exports=root.RiskEngine;
+function capacity(s){
+ const set=on=>({...s,usePledge:on,pools:s.pools.map(p=>({...p,pledge:p.other??p.pledge??0}))});
+ const first=t=>{const ps=calculate(t).pools.filter(p=>p.debt>0);return ps.length?Math.max(0,Math.min(...ps.map(p=>p.value>0?p.buffer:0))):null;};
+ const base=set(false),extra=set(true),now=calculate(base);
+ let lo=0,hi=1;
+ const passes=d=>{const r=calculate(extra,d);return r.cashGap<=1e-8&&r.equity>=-1e-8;};
+ if(passes(0)){for(let i=0;i<60;i++){const mid=(lo+hi)/2;if(passes(mid))lo=mid;else hi=mid;}}
+ const equityLimit=now.stock>0?Math.max(0,Math.min(1,now.equity/now.stock)):1;
+ return {current:first(base),stocks:first(extra),cash:lo,equityLimit,leverage:now.leverage,cashAmount:s.cash,stockAmount:s.other};
+}
+root.RiskEngine={calculate,validate,family,verdict,capacity};if(typeof module!=='undefined')module.exports=root.RiskEngine;
 })(typeof window!=='undefined'?window:globalThis);
