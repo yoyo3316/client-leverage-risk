@@ -6,8 +6,8 @@ function generate(members,drop,date='',eventName=''){
   if(m.data.pools.every(p=>p.cash!==undefined)){
    const s=m.data,now=E.calculate(s),r=E.calculate(s,drop);
    lines.push(`【${m.name}】`,`目前股票 ${fmt(now.stock)}、借款 ${fmt(now.debt)}、淨資產 ${fmt(now.equity)}、現金 ${fmt(s.cash)}。`,`借款／總資產 ${now.ltv===null?'無法計算':pct(now.ltv)}；股票曝險倍數 ${now.leverage===null?'淨資產非正':fmt(now.leverage)+' 倍'}。`);
-   now.pools.forEach((p,i)=>{const q=r.pools[i];lines.push(`• ${p.name}：擔保市值 ${fmt(p.value)}、借款 ${fmt(p.debt)}、維持率 ${p.ratio===null?'無借款':pct(p.ratio)}；可跌 ${p.debt?pct(Math.max(0,p.buffer*100)):'無借款'}。`,`  未設質現股 ${fmt(p.other)}、可用現金 ${fmt(p.cash)}、追加設定：${p.usePledge?'全投入':'未追加'}。`,`  股票下跌 ${pct(drop*100)} 後維持率 ${q.ratio===null?'無借款':pct(q.ratio)}；${q.breach?'需補款':'未觸發追繳'}，需還本金 ${fmt(q.breach?q.repay:0)}、現金缺口 ${fmt(Math.max(0,(q.breach?q.repay:0)-p.cash))}。`);});
-   lines.push(`本範圍情境後淨資產 ${fmt(r.equity)}、需還本金 ${fmt(r.repay)}、券商現金缺口合計 ${fmt(r.cashGap)}。`, '各券商獨立追繳，股票與現金不自動互抵；確認可移轉後再調整雙方資料。','');continue;
+   now.pools.forEach((p,i)=>{const q=r.pools[i];lines.push(`  質押抵押品 ${fmt(p.pledgeValue)}、質押借款 ${fmt(p.pledgeDebt)}；融資股票 ${fmt(p.marginValue)}、融資借款 ${fmt(p.marginDebt)}。`,`• ${p.name}：擔保市值 ${fmt(p.value)}、借款 ${fmt(p.debt)}、維持率 ${p.ratio===null?'無借款':pct(p.ratio)}；可跌 ${p.debt?pct(Math.max(0,p.buffer*100)):'無借款'}。`,`  未設質現股 ${fmt(p.other)}、可用現金 ${fmt(p.cash)}、追加設定：${p.usePledge?'全投入':'未追加'}。`,`  股票下跌 ${pct(drop*100)} 後維持率 ${q.ratio===null?'無借款':pct(q.ratio)}；${q.breach?'需補款':'未觸發追繳'}，需還本金 ${fmt(q.breach?q.repay:0)}、調用前現金缺口 ${fmt(Math.max(0,(q.breach?q.repay:0)-p.cash))}。`);});
+   lines.push(`本範圍情境後淨資產 ${fmt(r.equity)}、需還本金 ${fmt(r.repay)}、整合現金缺口 ${fmt(r.cashGap)}。`, '各券商股票擔保獨立；整合時同一人的現金可互相調用，不跨成員支援。需確認現金可及時到帳。','');continue;
   }
   const s=m.data,base=E.calculate({...s,usePledge:false}),now=E.calculate(s),r=E.calculate(s,drop),a=base.pools[0],b=now.pools[0];
   const ratio=p=>p?.ratio===null?'無借款':pct(p.ratio);

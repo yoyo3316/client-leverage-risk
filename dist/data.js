@@ -8,7 +8,7 @@ function normalize(raw){
   root.RiskEngine.validate(m.data);
   return {name:m.name,data:{cash:m.data.cash,other:m.data.other,debtOther:m.data.debtOther,...(m.data.usePledge!==undefined?{usePledge:!!m.data.usePledge}:{}),pools:m.data.pools.map(p=>{
    if(p.name.length>120)throw Error('帳戶名稱最多120字');
-   return {name:p.name,type:p.type,value:p.value,debt:p.debt,...(p.cash!==undefined?{cash:p.cash,other:p.other,usePledge:!!p.usePledge}:{}),trigger:130,target:166,...(p.pledge!==undefined?{pledge:p.pledge}:{})};
+   return {name:p.name,type:p.type,value:p.value,debt:p.debt,...(p.pledgeValue!==undefined?{pledgeValue:p.pledgeValue,pledgeDebt:p.pledgeDebt,marginValue:p.marginValue,marginDebt:p.marginDebt,legacyCombined:!!p.legacyCombined}:{}),...(p.cash!==undefined?{cash:p.cash,other:p.other,usePledge:!!p.usePledge}:{}),trigger:130,target:166,...(p.pledge!==undefined?{pledge:p.pledge}:{})};
   })}};
  });
  const result={version:2,date:/^\d{4}-\d{2}-\d{2}$/.test(raw.date)?raw.date:'',mode:raw.mode==='示範'?'示範':'使用者輸入',drop:Number.isFinite(raw.drop)&&raw.drop>=0&&raw.drop<=60?raw.drop:20,members};
@@ -26,7 +26,10 @@ function accounts(s){
  const result={...s,pools:pools.map((p,i)=>({...p,cash:modern?p.cash:(i===0?s.cash:0),other:modern?p.other:(i===0?s.other:0),usePledge:modern?!!p.usePledge:!!s.usePledge,pledge:0,debt:p.debt+(!modern&&i===0?s.debtOther:0)})),debtOther:0};
  return sync(result);
 }
-function sync(s){s.cash=s.pools.reduce((n,p)=>n+p.cash,0);s.other=s.pools.reduce((n,p)=>n+p.other,0);s.pools.forEach(p=>p.pledge=p.usePledge?p.other:0);s.usePledge=true;return s;}
+function sync(s){s.pools.forEach(p=>{
+ if(p.pledgeValue===undefined){const margin=p.type==='融資';p.pledgeValue=margin?0:p.value;p.pledgeDebt=margin?0:p.debt;p.marginValue=margin?p.value:0;p.marginDebt=margin?p.debt:0;p.legacyCombined=!!(p.cash!==undefined&&p.type==='質押'&&(p.value||p.debt));}
+ p.value=p.pledgeValue+p.marginValue;p.debt=p.pledgeDebt+p.marginDebt;
+ });s.cash=s.pools.reduce((n,p)=>n+p.cash,0);s.other=s.pools.reduce((n,p)=>n+p.other,0);s.pools.forEach(p=>p.pledge=p.usePledge?p.other:0);s.usePledge=true;return s;}
 function scope(s,index){if(index<0)return s;const p=s.pools[index];return {cash:p.cash,other:p.other,debtOther:0,usePledge:!!p.usePledge,pools:[{...p,pledge:p.other}]};}
 root.RiskData={normalize,consolidate,accounts,sync,scope};if(typeof module!=='undefined')module.exports=root.RiskData;
 })(typeof globalThis!=='undefined'?globalThis:this);

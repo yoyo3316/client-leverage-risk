@@ -23,20 +23,21 @@ function inputs(){
  const s=selected();$('usePledge').checked=broker>=0&&s.usePledge;$('usePledge').disabled=broker<0;
  for(const key of ['cash','other','debtOther']){$(key).value=s[key];$(key).disabled=broker<0;}
  $('brokerName').value=broker>=0?state.pools[broker].name:'';
- $('pools').innerHTML=broker<0?'<p class="notice">整合模式只供查閱。選擇券商後輸入該券商部位、可用現金與未設質現股。</p>':`<article class="pool"><div class="fields">${[['value','已作擔保股票市值'],['debt','借款']].map(([key,label])=>`<label>${label}<input type="number" min="0" step="0.01" data-i="${broker}" data-key="${key}" value="${state.pools[broker][key]}"></label>`).join('')}</div><div id="result0" class="status"></div></article>`;
+ $('pools').innerHTML=broker<0?'<p class="notice">整合模式只供查閱。選擇券商後分別輸入現金、現股、質押與融資，系統自動加總。</p>':`<article class="pool">${state.pools[broker].legacyCombined?'<p class="notice">舊合計部位暫列質押欄，請依實際資料拆分；總市值與借款沒有改變。</p>':''}${[['質押',[['pledgeValue','質押抵押品市值'],['pledgeDebt','質押借款金額']]],['融資',[['marginValue','融資股票市值'],['marginDebt','融資借款金額']]]].map(([title,fields])=>`<h3>${title}</h3><div class="fields">${fields.map(([key,label])=>`<label>${label}<input type="number" min="0" step="0.01" data-i="${broker}" data-key="${key}" value="${state.pools[broker][key]}"></label>`).join('')}</div>`).join('')}<p id="brokerAutoTotal" class="notice"></p><div id="result0" class="status"></div></article>`;
  render();
 }
 function buffer(p){return p.debt===0?null:p.value>0?Math.max(0,p.buffer*100):0;}
-function viewVerdict(r){const v=RiskEngine.verdict(r);return {...v,label:v.label==='未觸發追繳'?'各券商擔保足夠':v.label==='現金足以補款'?'需補款，券商現金足夠':v.label};}
+function viewVerdict(r){const v=RiskEngine.verdict(r);return {...v,label:v.label==='未觸發追繳'?'各券商擔保足夠':v.label==='現金足以補款'?'需補款，可用現金足夠':v.label};}
 function render(){
  family[active].data=state;family.forEach(m=>RiskData.sync(m.data));
  try{family.forEach(m=>RiskEngine.validate(m.data));$('error').textContent='';}
  catch(e){$('error').textContent=e.message;for(const id of ['brokerOverview','summary','overview','comparison','fundingChart','history','accountOverview','scenarios','chart','pledgeComparison','currentIndicators'])$(id).innerHTML='';$('stress').textContent='請先修正輸入，再看試算結果。';$('familyStats').textContent='';$('selectedEvent').textContent='';$('historySource').textContent='';$('clientSummary').value='輸入有誤，請先修正再產生摘要。';$('summaryContext').textContent='';state.pools.forEach((p,i)=>{if($('result'+i))$('result'+i).textContent='請先修正輸入';});return;}
+ if($('brokerAutoTotal'))$('brokerAutoTotal').textContent='自動合計：擔保市值 '+fmt(state.pools[broker].value)+' 萬／借款 '+fmt(state.pools[broker].debt)+' 萬';
  const scope=selected();const drop=Number($('drop').value)/100,now=RiskEngine.calculate(scope),r=RiskEngine.calculate(scope,drop),totalNow=RiskEngine.family(family),total=RiskEngine.family(family,drop);
  $('dropLabel').textContent=pct(drop*100);
  const bn=RiskEngine.calculate(state),br=RiskEngine.calculate(state,drop);
- $('brokerContext').textContent=family[active].name+'：股票下跌 '+pct(drop*100)+'；現金與股票不跨券商互抵。';
- $('brokerOverview').innerHTML='<thead><tr><th>券商／帳戶</th><th>借款</th><th>目前維持率</th><th>可跌</th><th>情境維持率</th><th>需還本金</th><th>現金缺口</th></tr></thead><tbody>'+bn.pools.map((p,i)=>{const q=br.pools[i],gap=Math.max(0,(q.breach?q.repay:0)-p.cash);return `<tr><td><button class="memberLink" data-broker="${i}">${esc(p.name)}</button></td><td>${fmt(p.debt)}</td><td>${p.ratio===null?'無借款':pct(p.ratio)}</td><td>${p.debt?pct(buffer(p)):'無借款'}</td><td>${q.ratio===null?'無借款':pct(q.ratio)}</td><td>${fmt(q.breach?q.repay:0)}</td><td class="${gap>0?'gap':''}">${fmt(gap)}</td></tr>`;}).join('')+'</tbody>';
+ $('brokerContext').textContent=family[active].name+'：股票下跌 '+pct(drop*100)+'；表內為調用前缺口，整合總覽可調用同一人現金，股票仍不跨券商互抵。';
+ $('brokerOverview').innerHTML='<thead><tr><th>券商／帳戶</th><th>借款</th><th>目前維持率</th><th>可跌</th><th>情境維持率</th><th>需還本金</th><th>調用前現金缺口</th></tr></thead><tbody>'+bn.pools.map((p,i)=>{const q=br.pools[i],gap=Math.max(0,(q.breach?q.repay:0)-p.cash);return `<tr><td><button class="memberLink" data-broker="${i}">${esc(p.name)}</button></td><td>${fmt(p.debt)}</td><td>${p.ratio===null?'無借款':pct(p.ratio)}</td><td>${p.debt?pct(buffer(p)):'無借款'}</td><td>${q.ratio===null?'無借款':pct(q.ratio)}</td><td>${fmt(q.breach?q.repay:0)}</td><td class="${gap>0?'gap':''}">${fmt(gap)}</td></tr>`;}).join('')+'</tbody>';
  const event=RiskHistory.events.find(e=>Math.abs(e.dropPercent-drop*100)<1e-7);
  $('selectedEvent').textContent=event?event.title+'｜'+event.from+' → '+event.to:'自訂跌幅情境';
  const distance=support(scope);
@@ -46,7 +47,7 @@ function render(){
  const base=RiskEngine.calculate(allSupport(scope,false)),p=now.pools[0];
  $('currentIndicators').innerHTML=[['目前淨資產',fmt(now.equity)+' 萬'],['總借款',fmt(now.debt)+' 萬'],['借款／總資產',now.ltv===null?'—':pct(now.ltv)],['股票曝險倍數',now.leverage===null?'淨資產非正':fmt(now.leverage)+' 倍'],[broker<0?'券商帳戶數':'目前維持率',broker<0?scope.pools.length+' 個':p.ratio===null?'無借款':pct(p.ratio)],[broker<0?'最早券商追繳跌幅':'本券商可支援跌幅',distance===null?'無借款':pct(distance)]].map(([a,b])=>`<div class="metric"><span>${a}</span><strong>${b}</strong></div>`).join('');
  $('stress').innerHTML=`<div class="verdict ${verdict.tone}"><strong>${verdict.label}</strong><span>${esc(name)} · 股票下跌 ${pct(drop*100)} · ${broker<0?'各券商獨立計算':scope.usePledge?'已追加本券商現股':'未追加現股'}${r.cashGap>0?' · 缺口 '+fmt(r.cashGap)+' 萬':''}</span></div>`;
- $('summary').innerHTML=[['跌 '+pct(drop*100)+' 後淨資產',fmt(r.equity)+' 萬','本人目前 '+fmt(now.equity)+' 萬'],['本人需還本金',fmt(r.repay)+' 萬','各低於130%的帳戶還款至166%（估算）'],['本人可用現金',fmt(scope.cash)+' 萬','不計其他成員資金'],['本人現金缺口',fmt(r.cashGap)+' 萬','各券商缺口加總，不跨券商互抵']].map(([a,b,c])=>`<div class="metric"><span>${a}</span><strong>${b}</strong><small>${c}</small></div>`).join('');
+ $('summary').innerHTML=[['跌 '+pct(drop*100)+' 後淨資產',fmt(r.equity)+' 萬','本人目前 '+fmt(now.equity)+' 萬'],['本人需還本金',fmt(r.repay)+' 萬','各低於130%的帳戶還款至166%（估算）'],['本人可用現金',fmt(scope.cash)+' 萬','不計其他成員資金'],['本人現金缺口',fmt(r.cashGap)+' 萬',broker<0?'各券商需還本金減同一人現金合計':'單券商缺口；整合時可用本人其他券商現金']].map(([a,b,c])=>`<div class="metric"><span>${a}</span><strong>${b}</strong><small>${c}</small></div>`).join('');
  now.pools.forEach((p,i)=>{const q=r.pools[i],el=$('result'+i);if(!el)return;el.className='status '+(q.breach?'danger':p.breach?'warning':'');el.innerHTML=`<div class="accountStatus"><span>${selected().usePledge?'追加後':'目前'}維持率 <b>${p.ratio===null?'無借款':pct(p.ratio)}</b></span><span>可跌 <b>${p.debt===0?'—':pct(buffer(p))}</b></span></div><small>跌 ${pct(drop*100)} 後 ${q.ratio===null?'無借款':pct(q.ratio)}${q.breach?' · 整體需補款':' · 整體擔保足夠'}</small>`;});
  const a=support(allSupport(scope,false)),b=support(allSupport(scope,true));
  $('pledgeComparison').innerHTML=`<div class="supportCompare"><div><span>目前擔保可支援跌幅</span><strong>${a===null?'無借款':pct(a)}</strong></div><span class="supportArrow">→</span><div><span>全部現股投入後</span><strong>${b===null?'無借款':pct(b)}</strong></div></div><p class="hint">${esc(name)}本人未設質現股 ${fmt(scope.other)} 萬 · ${broker<0?'依各券商設定':scope.usePledge?'目前已套用全投入':'目前未套用全投入'}。此為從目前價格起算的130%門檻，不含現金還款，不隨情境滑桿改變。</p>`;
@@ -85,7 +86,7 @@ function renderHistory(selectedEvent){
  $('historySource').innerHTML=list.map(e=>`<div>${esc(e.title)}：${fmt(e.peak)} → ${fmt(e.trough)} 點（收盤跌幅 ${pct(e.dropPercent)}） · ${e.sources.map(s=>`<a href="${s.url}" target="_blank" rel="noopener noreferrer">${esc(s.label)}</a>`).join('、')}</div>`).join('');
 }
 for(const key of ['cash','other','debtOther'])$(key).addEventListener('input',e=>{if(broker<0)return;state.pools[broker][key]=e.target.value===''?NaN:Number(e.target.value);mark();render();});
-$('pools').addEventListener('input',e=>{const {i,key}=e.target.dataset;if(key){state.pools[+i][key]=['name','type'].includes(key)?e.target.value:e.target.value===''?NaN:Number(e.target.value);mark();render();}});
+$('pools').addEventListener('input',e=>{const {i,key}=e.target.dataset;if(key){state.pools[+i][key]=['name','type'].includes(key)?e.target.value:e.target.value===''?NaN:Number(e.target.value);state.pools[+i].legacyCombined=false;mark();render();}});
 $('pools').addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){state.pools.splice(+e.target.dataset.remove,1);mark();inputs();}});
 $('add').onclick=()=>{if(state.pools.length>=100){$('error').textContent='每位成員最多100個帳戶';return;}state.pools.push({name:'新券商',type:'質押',value:0,debt:0,cash:0,other:0,usePledge:false});broker=state.pools.length-1;mark();inputs();};
 $('usePledge').onchange=e=>{if(broker<0)return;state.pools[broker].usePledge=e.target.checked;mark();inputs();};
