@@ -1,4 +1,4 @@
-name: Deploy GitHub Pages
+name: Validate dashboard and deploy Pages
 on:
   push:
     branches: [main]
@@ -11,7 +11,15 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node test.cjs
+      - run: node --check dist/app.js
   deploy:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
