@@ -5,10 +5,14 @@ function generate(members,drop,date='',eventName=''){
  for(const m of members){
   if(m.data.pools.every(p=>p.cash!==undefined)){
    const s=m.data,now=E.calculate(s),r=E.calculate(s,drop),c=E.capacity(s),v=E.readiness(s,drop);
+   const added=E.calculate({...s,usePledge:true,pools:s.pools.map(p=>({...p,pledge:p.other??0}))}).pools.filter(p=>p.debt>0);
+   const limit=added.length?Math.min(...added.map(p=>Math.max(0,p.buffer))):null;
+   const first=added.filter(p=>Math.abs(Math.max(0,p.buffer)-limit)<1e-7);
+   const firstText=first.map(p=>`${p.name}（該券商追加現股 ${fmt(p.other??0)} 萬）`).join('、');
    const threshold=n=>n===null?'沒有借款，不會因維持率追繳':n<=0?'目前已到追繳門檻':`約下跌 ${pct(n*100)} 才碰到追繳門檻`;
    lines.push(`【${m.name}】`,
     `① 目前不追加股票、不動用現金：${threshold(c.current)}。`,
-    `② 把未設質現股 ${fmt(c.stockAmount)} 萬全部加入各自券商擔保後：${threshold(c.stocks)}。`,
+    `② 各券商各自投入全部未設質現股（合計 ${fmt(c.stockAmount)} 萬，不跨券商調用）：${first.length?firstText+' 最早碰到追繳門檻，'+threshold(c.stocks):threshold(c.stocks)}。其他券商的現股不能直接提高這個帳戶的維持率。`,
     `③ 再動用現金 ${fmt(c.cashAmount)} 萬還款：估計可支援到股票下跌 ${pct(Math.floor(c.cash*10000+1e-7)/100)}。此時可能已追繳，但模型內現金仍足以補款，且淨資產未轉負。`,
     `④ 曝險倍數：${c.leverage===null?'淨資產非正，無法計算，需優先檢視借款。':`${fmt(c.leverage)} 倍。股票跌10%，目前淨資產約減少 ${pct(c.leverage*10)}。${c.leverage>1?'損失會被放大；倍數越高，淨資產縮水越快。':'現金降低了股票對整體淨資產的影響。'}`}`,
     '安全判斷：倍數本身不能保證安全，要一起看可跌幅、現金缺口與持股集中程度。',
