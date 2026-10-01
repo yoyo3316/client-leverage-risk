@@ -106,7 +106,7 @@
   if((fingerprint()!==beforeLoad||el('caseName').value!==beforeName)&&!confirm('載入期間頁面又有變更，確定取代這些資料？'))return;
   const payload=RiskData.normalize(data.payload);
   family=payload.members;active=0;state=family[0].data;mode=payload.mode;el('date').value=payload.date;el('drop').value=payload.drop;
-  el('mode').textContent=mode==='示範'?'已載入雲端示範數據，不代表客戶真實部位。金額單位：萬元。':'已載入雲端資料，請核對基準日與實際部位。金額單位：萬元。';inputs();
+  el('mode').textContent=mode==='示範'?'雲端示範資料｜萬元':'雲端資料｜萬元';inputs();
   current={id:data.id,name:data.name,revision:data.revision,updated_at:data.updated_at};el('caseName').value=data.name;baselineName=data.name;baseline=fingerprint();status('已載入「'+data.name+'」，最後儲存 '+new Date(data.updated_at).toLocaleString('zh-TW')+'。');
  });
  async function moveTrash(restore){

@@ -33,3 +33,6 @@ const meta={id:'case-1',name:'QA',revision:7,updated_at:'2026-10-01T00:00:00Z'};
  await el('signOut').onclick();assert.equal(context.family[0].data.cash,0);assert.equal(el('cloudWorkspace').hidden,true);
  console.log('Passed: manual-only cloud writes, ownership filters, stale revision conflict, invalid remote data, in-flight edit retention, sign-out clearing, save indicators, cancellable trash, restore, ownership and stale-revision protection.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
+## 精簡版面
+刪除輸入區重複的追加比較，將風險摘要提前，三階段數字標示最早追繳券商。備註、股災來源與額外圖表預設收合；保留儲存狀態、舊合計核對警示、重要計算限制。

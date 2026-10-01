@@ -14,8 +14,8 @@ function generate(members,drop,date='',eventName=''){
     '安全判斷：倍數本身不能保證安全，要一起看可跌幅、現金缺口與持股集中程度。',
     `本次股票下跌 ${pct(drop*100)} 的情境，依目前勾選設定：${r.cashGap>0?`還需準備 ${fmt(r.cashGap)} 萬，現金不足。`:r.equity<=0&&r.debt>0?'淨資產已非正，即使可補款仍有資產耗盡風險。':r.breached?`已碰到補款門檻，需還 ${fmt(r.repay)} 萬，目前現金足夠。`:'未碰到補款門檻。'}`,
     `目前股票 ${fmt(now.stock)} 萬、借款 ${fmt(now.debt)} 萬、淨資產 ${fmt(now.equity)} 萬。`,
-    '前兩項是「何時追繳」，第三項是「追繳後還能支援到哪裡」，不是同一個門檻。第三項是低點快照估算，未模擬沿途多次補款；不保證實際股災中能扛到該跌幅。',
-    '維持率以券商合計估算，實際需核對各質押／融資契約。現金可在同一人券商間調用；股票只加入所在券商，家人資金不互抵。假設全數股票同步下跌、擔保股票可及時投入、現金可及時到帳。','');continue;
+    '前兩項為最早追繳；現金支援是低點估算，未模擬沿途多次補款。',
+    '股票含未設質現股同步下跌；現金限同一人調用。實際追繳依契約與到帳時間。','');continue;
   }
   const s=m.data,base=E.calculate({...s,usePledge:false}),now=E.calculate(s),r=E.calculate(s,drop),a=base.pools[0],b=now.pools[0];
   const ratio=p=>p?.ratio===null?'無借款':pct(p.ratio);
@@ -29,6 +29,7 @@ function generate(members,drop,date='',eventName=''){
    `股票下跌 ${pct(drop*100)} 後：淨資產 ${fmt(r.equity)}、整體維持率 ${ratio(r.pools[0])}；估計需還本金 ${fmt(r.repay)}、現金缺口 ${fmt(r.cashGap)}。`,
    r.cashGap>0?'需確認補款來源與各券商期限；合計缺口不代表個別券商實際通知金額。':r.breached?'需核對現金可用時間與各券商實際補繳要求。':'合計擔保足夠仍須查看個別券商維持率及追繳通知。','');
  }
+ if(members.every(m=>m.data.pools.every(p=>p.cash!==undefined)))return lines.join('\n');
  lines.push(`${members.length===1?'此成員合計':'家庭合計'}：股票下跌 ${pct(drop*100)} 後淨資產 ${fmt(total.equity)}、需還本金 ${fmt(total.repay)}、各成員現金缺口合計 ${fmt(total.cashGap)}（不跨成員互抵）。`,
  '指標說明：借款比例＝借款÷（股票＋現金）；股票曝險倍數＝股票÷淨資產；可支援跌幅為整體維持率碰到130%的位置，不含現金還款效果。',
  '各券商帳戶獨立計算；未分券商的舊合計資料無法判斷個別券商風險。假設股票同步下跌、擔保按市值100%認列，追加股票可及時投入；未計利息、個股差異與轉入等待時間。歷史情境是跌幅壓力快照，非逐日回測。');
