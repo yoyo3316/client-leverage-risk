@@ -8,10 +8,10 @@ function normalize(raw){
   root.RiskEngine.validate(m.data);
   return {name:m.name,data:{cash:m.data.cash,other:m.data.other,debtOther:m.data.debtOther,pools:m.data.pools.map(p=>{
    if(p.name.length>120)throw Error('帳戶名稱最多120字');
-   return {name:p.name,type:p.type,value:p.value,debt:p.debt,trigger:p.trigger,target:p.target};
+   return {name:p.name,type:p.type,value:p.value,debt:p.debt,trigger:130,target:166};
   })}};
  });
- const result={version:2,date:/^\d{4}-\d{2}-\d{2}$/.test(raw.date)?raw.date:'',mode:raw.mode==='示範'?'示範':'使用者輸入',drop:Number.isInteger(raw.drop)&&raw.drop>=0&&raw.drop<=60?raw.drop:20,members};
+ const result={version:2,date:/^\d{4}-\d{2}-\d{2}$/.test(raw.date)?raw.date:'',mode:raw.mode==='示範'?'示範':'使用者輸入',drop:Number.isFinite(raw.drop)&&raw.drop>=0&&raw.drop<=60?raw.drop:20,members};
  if(new TextEncoder().encode(JSON.stringify(result)).length>1e6)throw Error('資料需小於1MB');
  return result;
 }

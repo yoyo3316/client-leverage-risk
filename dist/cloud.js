@@ -9,6 +9,7 @@
  function controls(){
   el('cloudLogin').hidden=!!user;el('cloudWorkspace').hidden=!user;el('signOut').hidden=!user;
   el('cloudAccount').textContent=user?'已登入：'+user.email:'未登入';
+  if(el('cloudSummaryStatus'))el('cloudSummaryStatus').textContent=user?'已登入 · 可儲存／載入':'登入後可儲存';
   for(const id of ['saveCloud','saveCopy','loadCloud','refreshCloud','newCloud','signOut'])el(id).disabled=busy||!user;
   el('caseList').disabled=busy;
   el('saveCloud').textContent=current?'更新這份檔案':'儲存新檔案';

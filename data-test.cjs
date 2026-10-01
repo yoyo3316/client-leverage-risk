@@ -6,8 +6,10 @@ const result=normalize(raw);assert.equal(result.drop,30);assert.equal(result.mem
 result.members[0].data.cash=99;assert.equal(raw.members[0].data.cash,10);
 assert.throws(()=>normalize({...raw,members:[] }));
 assert.throws(()=>normalize({...raw,members:[{name:'A',data:{...raw.members[0].data,cash:NaN}}]}));
-assert.throws(()=>normalize({...raw,members:[{name:'A',data:{...raw.members[0].data,pools:[{...raw.members[0].data.pools[0],target:129}]}}]}));
+assert.throws(()=>normalize({...raw,members:[{name:'A',data:{...raw.members[0].data,pools:[{...raw.members[0].data.pools[0],debt:-1}]}}]}));
 assert.equal(normalize({...raw,drop:99}).drop,20);
 assert.equal(normalize(raw.members[0].data).members.length,1);
 assert.throws(()=>normalize({version:2,members:Array.from({length:31},()=>raw.members[0])}));
 console.log('Passed: cloud snapshot validation, legacy fields removed, independent copies, corrupt data rejected.');
+
+assert.equal(normalize({...raw,drop:28.72}).drop,28.72);assert.equal(normalize({...raw,members:[{name:'A',data:{...raw.members[0].data,pools:[{...raw.members[0].data.pools[0],trigger:999,target:1}]}}]}).members[0].data.pools[0].target,166);
