@@ -13,3 +13,5 @@ main{max-width:1440px}header p{margin-bottom:18px}h1{font-size:32px}.tools{posit
 .pledgeInput[hidden]{display:none}@media(max-width:780px){#cloudVerify{flex-direction:column;align-items:stretch}}
 
 .passwordSettings{padding:12px;margin:8px 0 20px;background:#f0f6fa;border-radius:8px}#passwordSetup{display:flex;align-items:end;gap:12px;margin-top:14px}#passwordLogin[hidden],#linkLoginTools[hidden],#passwordHint[hidden]{display:none}@media(max-width:780px){#passwordSetup{flex-direction:column;align-items:stretch}}
+
+#clientSummary{display:block;width:100%;box-sizing:border-box;min-height:420px;resize:vertical;font:inherit;line-height:1.8;padding:16px;border:1px solid #cbd9e3;border-radius:8px;background:#f8fbfd;color:#18354b}#overviewContext,#summaryContext{margin:12px 0}@media print{#clientSummary{height:auto;overflow:visible}#copySummary{display:none}}
