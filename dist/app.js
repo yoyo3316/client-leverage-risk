@@ -13,14 +13,15 @@ function inputs(){
  family[active].data=state;
  $('member').innerHTML=family.map((m,i)=>`<option value="${i}" ${i===active?'selected':''}>${esc(m.name||'未命名成員')}</option>`).join('');
  $('memberName').value=family[active].name;
+ $('usePledge').checked=!!state.usePledge;
  for(const key of ['cash','other','debtOther'])$(key).value=state[key];
- $('pools').innerHTML=state.pools.map((p,i)=>`<article class="pool"><div class="poolhead"><label>券商／帳戶<input maxlength="120" data-i="${i}" data-key="name" value="${esc(p.name)}"></label><label>種類<select data-i="${i}" data-key="type"><option ${p.type==='融資'?'selected':''}>融資</option><option ${p.type==='質押'?'selected':''}>質押</option></select></label><button data-remove="${i}" aria-label="刪除${esc(p.name)}">×</button></div><div class="fields">${[['value','擔保股票市值'],['debt','借款本金']].map(([key,label])=>`<label>${label}<input type="number" min="0" step="0.01" data-i="${i}" data-key="${key}" value="${p[key]}"></label>`).join('')}</div><div id="result${i}" class="status"></div></article>`).join('');render();
+ $('pools').innerHTML=state.pools.map((p,i)=>`<article class="pool"><div class="poolhead"><label>券商／帳戶<input maxlength="120" data-i="${i}" data-key="name" value="${esc(p.name)}"></label><label>種類<select data-i="${i}" data-key="type"><option ${p.type==='融資'?'selected':''}>融資</option><option ${p.type==='質押'?'selected':''}>質押</option></select></label><button data-remove="${i}" aria-label="刪除${esc(p.name)}">×</button></div><div class="fields">${[['value','擔保股票市值'],['debt','借款本金']].map(([key,label])=>`<label>${label}<input type="number" min="0" step="0.01" data-i="${i}" data-key="${key}" value="${p[key]}"></label>`).join('')}</div><label class="pledgeInput" ${state.usePledge?'':'hidden'}>追加擔保股票市值<input type="number" min="0" step="0.01" data-i="${i}" data-key="pledge" value="${p.pledge||0}"></label><div id="result${i}" class="status"></div></article>`).join('');render();
 }
 function buffer(p){return p.debt===0?null:p.value>0?Math.max(0,p.buffer*100):0;}
 function render(){
  family[active].data=state;
  try{family.forEach(m=>RiskEngine.validate(m.data));$('error').textContent='';}
- catch(e){$('error').textContent=e.message;for(const id of ['summary','overview','comparison','fundingChart','history','accountOverview','scenarios','chart'])$(id).innerHTML='';$('stress').textContent='請先修正輸入，再看試算結果。';$('familyStats').textContent='';$('selectedEvent').textContent='';$('historySource').textContent='';state.pools.forEach((p,i)=>{if($('result'+i))$('result'+i).textContent='請先修正輸入';});return;}
+ catch(e){$('error').textContent=e.message;for(const id of ['summary','overview','comparison','fundingChart','history','accountOverview','scenarios','chart','pledgeComparison'])$(id).innerHTML='';$('stress').textContent='請先修正輸入，再看試算結果。';$('familyStats').textContent='';$('selectedEvent').textContent='';$('historySource').textContent='';state.pools.forEach((p,i)=>{if($('result'+i))$('result'+i).textContent='請先修正輸入';});return;}
  const drop=Number($('drop').value)/100,now=RiskEngine.calculate(state),r=RiskEngine.calculate(state,drop),totalNow=RiskEngine.family(family),total=RiskEngine.family(family,drop);
  $('dropLabel').textContent=pct(drop*100);
  const event=RiskHistory.events.find(e=>Math.abs(e.dropPercent-drop*100)<1e-7);
@@ -30,8 +31,9 @@ function render(){
  const verdict=RiskEngine.verdict(total);
  const zeroOwners=total.members.filter(m=>m.result.equity<=0&&m.result.debt>0).map(m=>m.name||'未命名成員');
  $('stress').innerHTML=`<div class="verdict ${verdict.tone}"><strong>${verdict.label}</strong><span>${total.breached?total.breached+' 個帳戶低於130%':''}${total.cashGap>0?' · 缺口 '+fmt(total.cashGap)+' 萬':''}${zeroOwners.length?' · '+esc(zeroOwners.join('、'))+'淨資產非正':''}${!total.breached&&!zeroOwners.length?'目前情境尚未低於追繳門檻':''}</span></div>`;
- $('summary').innerHTML=[['情境後家庭淨資產',fmt(total.equity)+' 萬','目前 '+fmt(totalNow.equity)+' 萬'],['需償還本金',fmt(total.repay)+' 萬','低於門檻帳戶還款至166%'],['各成員現金缺口',fmt(total.cashGap)+' 萬','不跨成員互抵'],['最早追繳可跌',distance===null?'無借款':pct(distance),'依目前各帳戶市值計算']].map(([a,b,c])=>`<div class="metric"><span>${a}</span><strong>${b}</strong><small>${c}</small></div>`).join('');
- now.pools.forEach((p,i)=>{const q=r.pools[i],el=$('result'+i);el.className='status '+(q.breach?'danger':p.breach?'warning':'');el.innerHTML=`<div class="accountStatus"><span>目前維持率 <b>${p.ratio===null?'無借款':pct(p.ratio)}</b></span><span>可跌 <b>${p.debt===0?'—':pct(buffer(p))}</b></span></div><small>跌 ${pct(drop*100)} 後 ${q.ratio===null?'無借款':pct(q.ratio)}${q.breach?' · 需補款':' · 未觸發追繳'}</small>`;});
+ $('summary').innerHTML=[['情境後家庭淨資產',fmt(total.equity)+' 萬','目前 '+fmt(totalNow.equity)+' 萬'],['需償還本金',fmt(total.repay)+' 萬','低於門檻帳戶還款至166%'],['各成員現金缺口',fmt(total.cashGap)+' 萬','不跨成員互抵'],['最早追繳可跌',distance===null?'無借款':pct(distance),'包含已啟用的追加股票擔保']].map(([a,b,c])=>`<div class="metric"><span>${a}</span><strong>${b}</strong><small>${c}</small></div>`).join('');
+ now.pools.forEach((p,i)=>{const q=r.pools[i],el=$('result'+i);el.className='status '+(q.breach?'danger':p.breach?'warning':'');el.innerHTML=`<div class="accountStatus"><span>${state.usePledge?'追加後':'目前'}維持率 <b>${p.ratio===null?'無借款':pct(p.ratio)}</b></span><span>可跌 <b>${p.debt===0?'—':pct(buffer(p))}</b></span></div><small>跌 ${pct(drop*100)} 後 ${q.ratio===null?'無借款':pct(q.ratio)}${q.breach?' · 需補款':' · 未觸發追繳'}</small>`;});
+ $('pledgeComparison').innerHTML=family.map(m=>{const before=RiskEngine.calculate({...m.data,usePledge:false}),after=RiskEngine.calculate({...m.data,usePledge:true});const gap=r=>{const ps=r.pools.filter(p=>p.debt>0);return ps.length?pct(Math.min(...ps.map(buffer))):'無借款';};return `<div><b>${esc(m.name)}</b>：最早追繳可跌 ${gap(before)} → ${gap(after)} · 追加 ${fmt(m.data.pools.reduce((n,p)=>n+(p.pledge||0),0))} 萬${m.data.usePledge?'（已啟用）':'（未啟用）'}</div>`;}).join('');
  drawCurve(totalNow,total,drop,distance);
  renderOverview(totalNow,total,drop);
  renderHistory(event);
@@ -67,6 +69,7 @@ for(const key of ['cash','other','debtOther'])$(key).addEventListener('input',e=
 $('pools').addEventListener('input',e=>{const {i,key}=e.target.dataset;if(key){state.pools[+i][key]=['name','type'].includes(key)?e.target.value:e.target.value===''?NaN:Number(e.target.value);mark();render();}});
 $('pools').addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){state.pools.splice(+e.target.dataset.remove,1);mark();inputs();}});
 $('add').onclick=()=>{if(state.pools.length>=100){$('error').textContent='每位成員最多100個帳戶';return;}state.pools.push({name:'新帳戶',type:'融資',value:0,debt:0});mark();inputs();};
+$('usePledge').onchange=e=>{state.usePledge=e.target.checked;mark();inputs();};
 $('drop').oninput=render;
 $('history').onclick=e=>{const button=e.target.closest('[data-event]');if(!button)return;const event=RiskHistory.events.find(x=>x.id===button.dataset.event);$('drop').value=event.dropPercent;render();$('drop').dispatchEvent(new Event('change',{bubbles:true}));};
 $('overview').onclick=e=>{const button=e.target.closest('[data-select-member]');if(!button)return;active=Number(button.dataset.selectMember);state=family[active].data;inputs();$('member').focus();};

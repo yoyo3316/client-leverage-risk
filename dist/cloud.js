@@ -7,7 +7,7 @@
  const fingerprint=()=>{try{return JSON.stringify(snapshot());}catch{return 'invalid';}};
  const dirty=()=>fingerprint()!==baseline||el('caseName').value.trim()!==baselineName;
  function controls(){
-  el('cloudLogin').hidden=!!user;el('cloudWorkspace').hidden=!user;el('signOut').hidden=!user;
+  el('cloudLogin').hidden=!!user;if(user)el('cloudVerify').hidden=true;el('cloudWorkspace').hidden=!user;el('signOut').hidden=!user;
   el('cloudAccount').textContent=user?'已登入：'+user.email:'未登入';
   if(el('cloudSummaryStatus'))el('cloudSummaryStatus').textContent=user?'已登入 · 可儲存／載入':'登入後可儲存';
   for(const id of ['saveCloud','saveCopy','loadCloud','refreshCloud','newCloud','signOut'])el(id).disabled=busy||!user;
@@ -34,6 +34,7 @@
  }
  async function action(work){if(busy)return;busy=true;controls();try{await work();}catch(e){status(message(e),true);}finally{busy=false;controls();}}
  function message(e){
+  if(e.code==='otp_expired')return '登入連結已使用或過期，請重新寄送，並在要登入的裝置驗證。';
   if(e.code==='42501')return '此登入帳號沒有雲端存取權限，請使用管理者 Email。';
   if(e.code==='PGRST205'||e.code==='42P01')return '雲端資料庫尚未完成啟用。';
   if(e.code==='over_email_send_rate_limit')return '登入信寄送次數已達限制，請稍後再試。';
@@ -54,11 +55,12 @@
   const {data,error}=await client.auth.getSession();if(error)throw error;user=data.session?.user||null;controls();
   if(user)await action(async()=>{await list();status('已登入。請選擇雲端檔案再按載入。');});else status('登入後可手動儲存；輸入不會自動上傳。');
  }catch(e){status(message(e),true);el('sendLogin').disabled=true;return;}
- el('cloudLogin').onsubmit=e=>{e.preventDefault();action(async()=>{
+ el('cloudLogin').onsubmit=e=>{e.preventDefault();return action(async()=>{
   const email=el('loginEmail').value.trim();if(!email||!el('loginEmail').checkValidity())throw Error('請填寫有效 Email');
   const {error}=await client.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:'https://yoyo3316.github.io/client-leverage-risk/'}});
-  if(error)throw error;status('登入信已寄出，請開啟信中的連結。請勿把登入連結分享給他人。');
+  if(error)throw error;el('cloudVerify').hidden=false;status('驗證信已寄出。請在電腦開啟信中連結，或把尚未使用的信中連結貼到下方。');
  });};
+ el('cloudVerify').onsubmit=e=>{e.preventDefault();return action(async()=>{let link;try{link=new URL(el('loginToken').value.trim());}catch{throw Error('請貼上信中的完整登入連結');}if(link.protocol!=='https:'||link.hostname!=='wusjzebqdzcdoichuhcd.supabase.co'||link.pathname!=='/auth/v1/verify'||!['magiclink','signup'].includes(link.searchParams.get('type'))||!link.searchParams.get('token'))throw Error('請使用此網站寄出的原始登入連結，不接受其他網址');const token_hash=link.searchParams.get('token'),type=link.searchParams.get('type');el('loginToken').value='';const {error}=await client.auth.verifyOtp({token_hash,type});if(error)throw error;el('loginToken').value='';status('此裝置已完成登入。');});};
  el('signOut').onclick=()=>action(async()=>{
   if(dirty()&&!confirm('尚有未儲存變更。確定登出並清除頁面資料？'))return;
   const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;user=null;epoch++;resetPrivate();status('已登出，頁面上的私人資料已清除。');

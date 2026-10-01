@@ -11,3 +11,9 @@ assert.equal(E.verdict(E.calculate({cash:0,other:100,debtOther:200,pools:[]})).l
 const family=[{name:'媽媽',data:{cash:1000,other:0,debtOther:0,pools:[]}},{name:'小孩',data:{cash:0,other:0,debtOther:0,pools:[pool]}}];
 for(const event of events){const t=E.family(family,event.dropPercent/100);assert.ok(t.equity>0);assert.ok(t.cashGap>0);assert.equal(E.verdict(t).label,'現金不足');assert.equal(t.cashGap,t.members[1].result.cashGap);}
 console.log('Passed: sourced event drawdowns, fixed thresholds, cash sufficiency, empty portfolios, financed non-positive equity, family cash isolation.');
+const pledged={cash:20,other:100,debtOther:0,usePledge:true,pools:[{name:'P',type:'質押',value:200,debt:100,pledge:100}]};
+const base=E.calculate({...pledged,usePledge:false}),added=E.calculate(pledged);
+assert.equal(added.equity,base.equity);assert.equal(added.stock,base.stock);assert.equal(added.pools[0].ratio,300);assert.ok(Math.abs(added.pools[0].buffer-170/300)<1e-10);
+assert.equal(E.calculate(pledged,.5).breached,0);assert.equal(E.calculate({...pledged,usePledge:false},.5).breached,1);
+assert.throws(()=>E.validate({...pledged,other:99}),/不可超過/);assert.throws(()=>E.validate({...pledged,pools:[{...pledged.pools[0],pledge:-1}]}),/非負數/);
+console.log('Passed: added collateral increases drawdown buffer without double counting stock/equity; insufficient unpledged stock rejected.');

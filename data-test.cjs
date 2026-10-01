@@ -13,3 +13,5 @@ assert.throws(()=>normalize({version:2,members:Array.from({length:31},()=>raw.me
 console.log('Passed: cloud snapshot validation, legacy fields removed, independent copies, corrupt data rejected.');
 
 assert.equal(normalize({...raw,drop:28.72}).drop,28.72);assert.equal(normalize({...raw,members:[{name:'A',data:{...raw.members[0].data,pools:[{...raw.members[0].data.pools[0],trigger:999,target:1}]}}]}).members[0].data.pools[0].target,166);
+
+const pledgeRaw={version:2,members:[{name:'QA',data:{cash:0,other:100,debtOther:0,usePledge:true,pools:[{name:'QA',type:'融資',value:100,debt:50,pledge:80}]}}]};const pledgeSaved=require('./dist/data.js').normalize(pledgeRaw);assert.equal(pledgeSaved.members[0].data.usePledge,true);assert.equal(pledgeSaved.members[0].data.pools[0].pledge,80);
