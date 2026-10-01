@@ -19,6 +19,7 @@ function inputs(){
  $('memberName').value=family[active].name;
  $('broker').innerHTML='<option value="-1">全部券商整合總覽</option>'+state.pools.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('');$('broker').value=broker;
  $('brokerFields').hidden=broker<0;$('removeBroker').hidden=broker<0;
+ $('cashLabel').textContent=broker<0?'成員現金合計（唯讀）':'此券商可用現金';$('otherLabel').textContent=broker<0?'未設質現股合計（唯讀）':'此券商未設質現股';
  const s=selected();$('usePledge').checked=broker>=0&&s.usePledge;$('usePledge').disabled=broker<0;
  for(const key of ['cash','other','debtOther']){$(key).value=s[key];$(key).disabled=broker<0;}
  $('brokerName').value=broker>=0?state.pools[broker].name:'';
@@ -30,7 +31,7 @@ function viewVerdict(r){const v=RiskEngine.verdict(r);return {...v,label:v.label
 function render(){
  family[active].data=state;family.forEach(m=>RiskData.sync(m.data));
  try{family.forEach(m=>RiskEngine.validate(m.data));$('error').textContent='';}
- catch(e){$('error').textContent=e.message;for(const id of ['summary','overview','comparison','fundingChart','history','accountOverview','scenarios','chart','pledgeComparison','currentIndicators'])$(id).innerHTML='';$('stress').textContent='請先修正輸入，再看試算結果。';$('familyStats').textContent='';$('selectedEvent').textContent='';$('historySource').textContent='';$('clientSummary').value='輸入有誤，請先修正再產生摘要。';$('summaryContext').textContent='';state.pools.forEach((p,i)=>{if($('result'+i))$('result'+i).textContent='請先修正輸入';});return;}
+ catch(e){$('error').textContent=e.message;for(const id of ['brokerOverview','summary','overview','comparison','fundingChart','history','accountOverview','scenarios','chart','pledgeComparison','currentIndicators'])$(id).innerHTML='';$('stress').textContent='請先修正輸入，再看試算結果。';$('familyStats').textContent='';$('selectedEvent').textContent='';$('historySource').textContent='';$('clientSummary').value='輸入有誤，請先修正再產生摘要。';$('summaryContext').textContent='';state.pools.forEach((p,i)=>{if($('result'+i))$('result'+i).textContent='請先修正輸入';});return;}
  const scope=selected();const drop=Number($('drop').value)/100,now=RiskEngine.calculate(scope),r=RiskEngine.calculate(scope,drop),totalNow=RiskEngine.family(family),total=RiskEngine.family(family,drop);
  $('dropLabel').textContent=pct(drop*100);
  const bn=RiskEngine.calculate(state),br=RiskEngine.calculate(state,drop);
