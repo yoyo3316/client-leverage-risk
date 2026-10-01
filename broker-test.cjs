@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');global.RiskEngine=require('./dist/engine.js');const D=require('./dist/data.js');
 const s=D.accounts({cash:100,other:50,debtOther:20,pools:[{name:'A',type:'質押',value:100,debt:100},{name:'B',type:'融資',value:1000,debt:100}]});
 assert.equal(s.pools.length,2);assert.equal(s.pools[0].debt,120);assert.equal(s.cash,100);assert.equal(s.other,50);
-const r=RiskEngine.calculate(s,.2);assert.equal(r.breached,1);assert.equal(r.repay,120-80/1.66);
+const r=RiskEngine.calculate(s,.2);assert.equal(r.breached,1);assert.equal(r.repay,120-80/1.3);assert.equal(RiskEngine.calculate(s,.2,true).repay,120-80/1.66);
 s.pools[0].cash=0;s.pools[1].cash=100;D.sync(s);assert.equal(RiskEngine.calculate(s,.2).cashGap,0);
 const equity=RiskEngine.calculate(s).equity;s.pools[0].usePledge=true;D.sync(s);assert.equal(RiskEngine.calculate(s).equity,equity);
 const saved=D.normalize({version:2,members:[{name:'QA',data:s}]});assert.deepEqual(RiskEngine.calculate(D.accounts(saved.members[0].data)),RiskEngine.calculate(D.normalize({version:2,members:[{name:"QA",data:s}]}).members[0].data));

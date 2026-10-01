@@ -1,7 +1,7 @@
 (function(root){
 
-function conservativePool(p,drop,enabled){
- const rows=[{type:'質押',value:p.pledgeValue,debt:p.pledgeDebt,threshold:1.66},{type:'融資',value:p.marginValue,debt:p.marginDebt,threshold:1.3}].filter(x=>x.value||x.debt);
+function conservativePool(p,drop,enabled,planning=false){
+ const rows=[{type:'質押',value:p.pledgeValue,debt:p.pledgeDebt,threshold:planning?1.66:1.3},{type:'融資',value:p.marginValue,debt:p.marginDebt,threshold:1.3}].filter(x=>x.value||x.debt);
  const extra=enabled?(p.pledge||0):0,factor=1-drop;
  const needed=d=>rows.reduce((n,x)=>n+(x.debt>0?Math.max(0,x.threshold*x.debt/(1-d)-x.value):0),0);
  const hasDebt=rows.some(x=>x.debt>0);let lo=0,hi=1;
@@ -24,11 +24,11 @@ function conservativePool(p,drop,enabled){
  return {...p,value,collateral:value,ratio:p.debt>0?value/p.debt*100:null,trigger:rows.filter(x=>x.debt>0).map(x=>x.threshold*100).join('/'),target:null,buffer:hasDebt?lo:null,breach:components.some(x=>x.breach),add:components.reduce((n,x)=>n+Math.max(0,x.threshold*x.debt-x.collateral),0),repay:components.reduce((n,x)=>n+x.repay,0),components};
 }
 
-function calculate(s,drop=0){
+function calculate(s,drop=0,planning=false){
  const cash=Number(s.cash),other=Number(s.other),debtOther=Number(s.debtOther);
  const allocated=s.usePledge?s.pools.reduce((n,p)=>n+(p.pledge||0),0):0;
  const legacyPool=p=>{const base=p.value+(s.usePledge?(p.pledge||0):0);const value=base*(1-drop),collateral=value;const ratio=p.debt>0?collateral/p.debt*100:null;const trigger=1.3,target=1.66;return {...p,trigger:130,target:166,value,collateral,ratio,buffer:p.debt>0?(base-trigger*p.debt)/base:null,breach:p.debt>0&&collateral<trigger*p.debt,add:Math.max(0,target*p.debt-collateral),repay:Math.max(0,p.debt-collateral/target)};};
- const pools=s.pools.map(p=>p.pledgeValue!==undefined?conservativePool(p,drop,s.usePledge):legacyPool(p));
+ const pools=s.pools.map(p=>p.pledgeValue!==undefined?conservativePool(p,drop,s.usePledge,planning):legacyPool(p));
  const stock=pools.reduce((a,p)=>a+p.value,0)+(other-allocated)*(1-drop),debt=pools.reduce((a,p)=>a+p.debt,0)+debtOther,assets=stock+cash,equity=assets-debt;
  const breached=pools.filter(p=>p.breach),repay=breached.reduce((a,p)=>a+p.repay,0),add=breached.reduce((a,p)=>a+p.add,0);
  return {pools,stock,debt,assets,equity,leverage:equity>0?stock/equity:null,ltv:assets>0?debt/assets*100:null,repay,add,cashGap:Math.max(0,repay-cash),breached:breached.length};
@@ -45,21 +45,22 @@ function capacity(s){
  const first=t=>{const ps=calculate(t).pools.filter(p=>p.debt>0);return ps.length?Math.max(0,Math.min(...ps.map(p=>p.value>0?p.buffer:0))):null;};
  const base=set(false),extra=set(true),now=calculate(base);
  let lo=0,hi=1;
- const passes=d=>{const r=calculate(extra,d);return r.cashGap<=1e-8&&r.equity>=-1e-8;};
+ const passes=d=>{const r=calculate(extra,d,true);return r.cashGap<=1e-8&&r.equity>=-1e-8;};
  if(passes(0)){for(let i=0;i<60;i++){const mid=(lo+hi)/2;if(passes(mid))lo=mid;else hi=mid;}}
  const equityLimit=now.stock>0?Math.max(0,Math.min(1,now.equity/now.stock)):1;
  return {current:first(base),stocks:first(extra),cash:lo,equityLimit,leverage:now.leverage,cashAmount:s.cash,stockAmount:s.other};
 }
 function readiness(s,drop){
  const staged=on=>({...s,usePledge:on,pools:s.pools.map(p=>({...p,pledge:p.other??p.pledge??0}))});
- const original=calculate(staged(false),drop),stocks=calculate(staged(true),drop),present=calculate(staged(false));
+ const original=calculate(staged(false),drop),stocks=calculate(staged(true),drop),present=calculate(staged(false)),support=calculate(staged(true),drop,true);
  let label,tone;
- if(stocks.equity<=0&&stocks.debt>0){label='淨資產非正';tone='danger';}
+ if(support.equity<=0&&support.debt>0){label='淨資產非正';tone='danger';}
+ else if(support.cashGap>1e-8){label=!original.breached?'未追繳，但保守目標不足':!stocks.breached?'現股可免追繳，但保守目標不足':'現股＋現金仍不足';tone='danger';}
  else if(!original.breached){label='原部位可承受';tone='safe';}
  else if(!stocks.breached){label='追加現股後足夠';tone='warning';}
- else if(stocks.cashGap<=1e-8){label='現股＋現金可支援';tone='warning';}
+ else if(support.cashGap<=1e-8){label='現股＋現金可支援';tone='warning';}
  else{label='現股＋現金仍不足';tone='danger';}
- return {original,stocks,present,label,tone,capacity:capacity(s)};
+ return {original,stocks,support,present,label,tone,capacity:capacity(s)};
 }
 root.RiskEngine={calculate,validate,family,verdict,capacity,readiness};if(typeof module!=='undefined')module.exports=root.RiskEngine;
 })(typeof window!=='undefined'?window:globalThis);
