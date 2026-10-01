@@ -2,11 +2,11 @@ const assert=require('node:assert/strict'),E=require('./dist/engine.js'),D=requi
 const modern=p=>D.accounts({cash:0,other:0,debtOther:0,pools:[{name:'QA',cash:20,other:50,type:'質押',...p}]});
 const pledge=modern({pledgeValue:100,pledgeDebt:50,marginValue:0,marginDebt:0}),margin=modern({pledgeValue:0,pledgeDebt:0,marginValue:100,marginDebt:50});
 const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);
-close(E.capacity(pledge).current,.35);close(E.capacity(pledge).stocks,1-65/150);close(E.capacity(pledge).cash,.668);
+close(E.capacity(pledge).current,.17);close(E.capacity(pledge).stocks,1-83/150);close(E.capacity(pledge).cash,.668);
 close(E.capacity(margin).current,.35);close(E.capacity(margin).stocks,1-65/150);close(E.capacity(margin).cash,.74);
 assert.ok(E.capacity(margin).cash>E.capacity(margin).stocks);
 const mixed=modern({pledgeValue:166,pledgeDebt:100,marginValue:130,marginDebt:100});mixed.pools[0].other=30;D.sync(mixed);
-close(E.capacity(mixed).stocks,3/16);close(E.capacity(mixed).cash,56/290);
+close(E.capacity(mixed).stocks,30/326);close(E.capacity(mixed).cash,56/290);
 const staged={...mixed,usePledge:true,pools:mixed.pools.map(p=>({...p,pledge:p.other}))};
 close(E.calculate(staged,.2,true).repay,20+2/1.3);close(E.calculate(staged,.2,true).cashGap,2/1.3);
 close(E.calculate(staged,.2).stock,326*.8);close(E.calculate(staged,.2).equity,326*.8+20-200);
@@ -16,9 +16,6 @@ close(E.calculate({...margin,usePledge:true,pools:margin.pools.map(p=>({...p,ple
 console.log('Passed: pledge166/margin130, split contracts, optimal same-broker stock allocation, cash pooling, no cross-broker stock or asset double counting.');
 
 const below166=modern({pledgeValue:150,pledgeDebt:100,marginValue:0,marginDebt:0});below166.pools[0].cash=0;below166.pools[0].other=0;D.sync(below166);
-close(E.capacity(below166).current,1-130/150);assert.equal(E.calculate(below166).breached,0);assert.equal(E.capacity(below166).cash,0);assert.ok(E.readiness(below166,0).support.cashGap>0);
-assert.match(E.readiness(below166,0).label,/未追繳/);
-close(E.calculate(staged,.2).repay,2/1.3);
-console.log('Passed: original and stock-only use130; full support uses pledge166/margin130; below166 is not a current130 breach.');
-
-below166.pools[0].cash=20;D.sync(below166);assert.match(E.readiness(below166,0).label,/未追繳.*需現金/);
+assert.equal(E.capacity(below166).current,0);assert.equal(E.calculate(below166).breached,1);assert.equal(E.capacity(below166).cash,0);
+close(E.calculate(staged,.2).repay,20+2/1.3);
+console.log('Passed: every displayed stage uses pledge166/margin130; pledged150 yields zero conservative buffer.');

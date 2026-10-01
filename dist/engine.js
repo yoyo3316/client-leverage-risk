@@ -24,7 +24,7 @@ function conservativePool(p,drop,enabled,planning=false){
  return {...p,value,collateral:value,ratio:p.debt>0?value/p.debt*100:null,trigger:rows.filter(x=>x.debt>0).map(x=>x.threshold*100).join('/'),target:null,buffer:hasDebt?lo:null,breach:components.some(x=>x.breach),add:components.reduce((n,x)=>n+Math.max(0,x.threshold*x.debt-x.collateral),0),repay:components.reduce((n,x)=>n+x.repay,0),components};
 }
 
-function calculate(s,drop=0,planning=false){
+function calculate(s,drop=0,planning=true){
  const cash=Number(s.cash),other=Number(s.other),debtOther=Number(s.debtOther);
  const allocated=s.usePledge?s.pools.reduce((n,p)=>n+(p.pledge||0),0):0;
  const legacyPool=p=>{const base=p.value+(s.usePledge?(p.pledge||0):0);const value=base*(1-drop),collateral=value;const ratio=p.debt>0?collateral/p.debt*100:null;const trigger=1.3,target=1.66;return {...p,trigger:130,target:166,value,collateral,ratio,buffer:p.debt>0?(base-trigger*p.debt)/base:null,breach:p.debt>0&&collateral<trigger*p.debt,add:Math.max(0,target*p.debt-collateral),repay:Math.max(0,p.debt-collateral/target)};};
