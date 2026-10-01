@@ -7,9 +7,10 @@
  const fingerprint=()=>{try{return JSON.stringify(snapshot());}catch{return 'invalid';}};
  const dirty=()=>fingerprint()!==baseline||el('caseName').value.trim()!==baselineName;
  function controls(){
-  el('cloudLogin').hidden=!!user;if(user)el('cloudVerify').hidden=true;el('cloudWorkspace').hidden=!user;el('signOut').hidden=!user;
+  el('passwordLogin').hidden=!!user;el('passwordHint').hidden=!!user;el('linkLoginTools').hidden=!!user;el('cloudLogin').hidden=!!user;if(user)el('cloudVerify').hidden=true;el('cloudWorkspace').hidden=!user;el('signOut').hidden=!user;
   el('cloudAccount').textContent=user?'已登入：'+user.email:'未登入';
   if(el('cloudSummaryStatus'))el('cloudSummaryStatus').textContent=user?'已登入 · 可儲存／載入':'登入後可儲存';
+  el('passwordSignIn').disabled=busy||!!user;el('setPassword').disabled=busy||!user;el('sendLogin').disabled=busy||!!user;el('verifyLogin').disabled=busy||!!user;
   for(const id of ['saveCloud','saveCopy','loadCloud','refreshCloud','newCloud','signOut'])el(id).disabled=busy||!user;
   el('caseList').disabled=busy;
   el('saveCloud').textContent=current?'更新這份檔案':'儲存新檔案';
@@ -34,6 +35,9 @@
  }
  async function action(work){if(busy)return;busy=true;controls();try{await work();}catch(e){status(message(e),true);}finally{busy=false;controls();}}
  function message(e){
+  if(e.code==='invalid_credentials')return 'Email 或密碼不正確。若尚未設定密碼，請先在已登入的裝置設定。';
+  if(e.code==='reauthentication_needed')return '請用登入信重新驗證身分，再設定密碼。';
+  if(e.code==='weak_password')return '密碼不符合要求，請使用更長且較難猜的密碼。';
   if(e.code==='otp_expired')return '登入連結已使用或過期，請重新寄送，並在要登入的裝置驗證。';
   if(e.code==='42501')return '此登入帳號沒有雲端存取權限，請使用管理者 Email。';
   if(e.code==='PGRST205'||e.code==='42P01')return '雲端資料庫尚未完成啟用。';
@@ -47,14 +51,24 @@
   baseline=fingerprint();
   client.auth.onAuthStateChange((event,session)=>{
    const previous=user?.id,next=session?.user||null;user=next;
-   if(previous!==next?.id){epoch++;if(previous)resetPrivate();}
+   if(previous!==next?.id){for(const id of ['loginPassword','newPassword','confirmPassword'])el(id).value='';epoch++;if(previous)resetPrivate();}
    controls();
    if(event==='SIGNED_OUT'){resetPrivate();status('已登出，頁面上的私人資料已清除。');}
    if(next&&['SIGNED_IN','INITIAL_SESSION'].includes(event))setTimeout(()=>action(async()=>{await list();status('已登入。請選擇檔案載入，或填寫資料後手動儲存。');}),0);
   });
   const {data,error}=await client.auth.getSession();if(error)throw error;user=data.session?.user||null;controls();
   if(user)await action(async()=>{await list();status('已登入。請選擇雲端檔案再按載入。');});else status('登入後可手動儲存；輸入不會自動上傳。');
- }catch(e){status(message(e),true);el('sendLogin').disabled=true;return;}
+ }catch(e){status(message(e),true);for(const id of ['sendLogin','passwordSignIn','setPassword','verifyLogin'])el(id).disabled=true;return;}
+ el('passwordLogin').onsubmit=e=>{e.preventDefault();return action(async()=>{
+  const email=el('passwordEmail').value.trim();if(!email||!el('passwordEmail').checkValidity())throw Error('請填寫有效 Email');
+  const password=el('loginPassword').value;if(!password)throw Error('請輸入密碼');
+  try{const {error}=await client.auth.signInWithPassword({email,password});if(error)throw error;status('已登入此裝置。請選擇雲端檔案載入。');}finally{el('loginPassword').value='';}
+ });};
+ el('passwordSetup').onsubmit=e=>{e.preventDefault();return action(async()=>{
+  if(!user)throw Error('請先登入');const password=el('newPassword').value;
+  if(password.length<8)throw Error('新密碼至少8字');if(password!==el('confirmPassword').value)throw Error('兩次密碼不一致');
+  try{const {error}=await client.auth.updateUser({password});if(error)throw error;status('登入密碼已設定。其他裝置現在可用相同 Email＋密碼登入。');}finally{el('newPassword').value='';el('confirmPassword').value='';}
+ });};
  el('cloudLogin').onsubmit=e=>{e.preventDefault();return action(async()=>{
   const email=el('loginEmail').value.trim();if(!email||!el('loginEmail').checkValidity())throw Error('請填寫有效 Email');
   const {error}=await client.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:'https://yoyo3316.github.io/client-leverage-risk/'}});
