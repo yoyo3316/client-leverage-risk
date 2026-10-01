@@ -4,7 +4,7 @@ function generate(members,drop,date='',eventName=''){
  const lines=[`部位風險摘要｜基準日：${date||'未填寫'}`,`情境：全部股票同步下跌 ${pct(drop*100)}${eventName?'（'+eventName+'）':''}。金額單位：萬元。`,''];
  for(const m of members){
   if(m.data.pools.every(p=>p.cash!==undefined)){
-   const s=m.data,now=E.calculate(s),r=E.calculate(s,drop),c=E.capacity(s);
+   const s=m.data,now=E.calculate(s),r=E.calculate(s,drop),c=E.capacity(s),v=E.readiness(s,drop);
    const threshold=n=>n===null?'沒有借款，不會因維持率追繳':n<=0?'目前已到追繳門檻':`約下跌 ${pct(n*100)} 才碰到追繳門檻`;
    lines.push(`【${m.name}】`,
     `① 目前不追加股票、不動用現金：${threshold(c.current)}。`,
@@ -12,7 +12,8 @@ function generate(members,drop,date='',eventName=''){
     `③ 再動用現金 ${fmt(c.cashAmount)} 萬還款：估計可支援到股票下跌 ${pct(Math.floor(c.cash*10000+1e-7)/100)}。此時可能已追繳，但模型內現金仍足以補款，且淨資產未轉負。`,
     `④ 曝險倍數：${c.leverage===null?'淨資產非正，無法計算，需優先檢視借款。':`${fmt(c.leverage)} 倍。股票跌10%，目前淨資產約減少 ${pct(c.leverage*10)}。${c.leverage>1?'損失會被放大；倍數越高，淨資產縮水越快。':'現金降低了股票對整體淨資產的影響。'}`}`,
     '安全判斷：倍數本身不能保證安全，要一起看可跌幅、現金缺口與持股集中程度。',
-    `本次股票下跌 ${pct(drop*100)} 的情境，依目前勾選設定：${r.cashGap>0?`還需準備 ${fmt(r.cashGap)} 萬，現金不足。`:r.equity<=0&&r.debt>0?'淨資產已非正，即使可補款仍有資產耗盡風險。':r.breached?`已碰到補款門檻，需還 ${fmt(r.repay)} 萬，目前現金足夠。`:'未碰到補款門檻。'}`,
+    `股票下跌 ${pct(drop*100)}：${v.label}（現股情境假設預先投入）。`,
+    `原部位需還 ${fmt(v.original.repay)} 萬；加現股後需還 ${fmt(v.stocks.repay)} 萬；再用現金仍缺 ${fmt(v.stocks.cashGap)} 萬。`,
     `目前股票 ${fmt(now.stock)} 萬、借款 ${fmt(now.debt)} 萬、淨資產 ${fmt(now.equity)} 萬。`,
     '前兩項為最早追繳；現金支援是低點估算，未模擬沿途多次補款。',
     '股票含未設質現股同步下跌；現金限同一人調用。實際追繳依契約與到帳時間。','');continue;

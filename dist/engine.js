@@ -24,5 +24,16 @@ function capacity(s){
  const equityLimit=now.stock>0?Math.max(0,Math.min(1,now.equity/now.stock)):1;
  return {current:first(base),stocks:first(extra),cash:lo,equityLimit,leverage:now.leverage,cashAmount:s.cash,stockAmount:s.other};
 }
-root.RiskEngine={calculate,validate,family,verdict,capacity};if(typeof module!=='undefined')module.exports=root.RiskEngine;
+function readiness(s,drop){
+ const staged=on=>({...s,usePledge:on,pools:s.pools.map(p=>({...p,pledge:p.other??p.pledge??0}))});
+ const original=calculate(staged(false),drop),stocks=calculate(staged(true),drop),present=calculate(staged(false));
+ let label,tone;
+ if(stocks.equity<=0&&stocks.debt>0){label='淨資產非正';tone='danger';}
+ else if(!original.breached){label='原部位可承受';tone='safe';}
+ else if(!stocks.breached){label='追加現股後足夠';tone='warning';}
+ else if(stocks.cashGap<=1e-8){label='現股＋現金可支援';tone='warning';}
+ else{label='現股＋現金仍不足';tone='danger';}
+ return {original,stocks,present,label,tone,capacity:capacity(s)};
+}
+root.RiskEngine={calculate,validate,family,verdict,capacity,readiness};if(typeof module!=='undefined')module.exports=root.RiskEngine;
 })(typeof window!=='undefined'?window:globalThis);
