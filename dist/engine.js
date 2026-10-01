@@ -56,8 +56,8 @@ function readiness(s,drop){
  let label,tone;
  if(support.equity<=0&&support.debt>0){label='淨資產非正';tone='danger';}
  else if(support.cashGap>1e-8){label=!original.breached?'未追繳，但保守目標不足':!stocks.breached?'現股可免追繳，但保守目標不足':'現股＋現金仍不足';tone='danger';}
- else if(!original.breached){label='原部位可承受';tone='safe';}
- else if(!stocks.breached){label='追加現股後足夠';tone='warning';}
+ else if(!original.breached){label=support.repay>1e-8?'未追繳；達支援目標需現金':'原部位可承受';tone=support.repay>1e-8?'warning':'safe';}
+ else if(!stocks.breached){label=support.repay>1e-8?'現股可免追繳；目標需現金':'追加現股後足夠';tone='warning';}
  else if(support.cashGap<=1e-8){label='現股＋現金可支援';tone='warning';}
  else{label='現股＋現金仍不足';tone='danger';}
  return {original,stocks,support,present,label,tone,capacity:capacity(s)};

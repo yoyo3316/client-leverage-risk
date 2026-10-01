@@ -20,3 +20,5 @@ close(E.capacity(below166).current,1-130/150);assert.equal(E.calculate(below166)
 assert.match(E.readiness(below166,0).label,/未追繳/);
 close(E.calculate(staged,.2).repay,2/1.3);
 console.log('Passed: original and stock-only use130; full support uses pledge166/margin130; below166 is not a current130 breach.');
+
+below166.pools[0].cash=20;D.sync(below166);assert.match(E.readiness(below166,0).label,/未追繳.*需現金/);
