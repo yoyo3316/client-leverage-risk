@@ -15,5 +15,10 @@ function normalize(raw){
  if(new TextEncoder().encode(JSON.stringify(result)).length>1e6)throw Error('資料需小於1MB');
  return result;
 }
-root.RiskData={normalize};if(typeof module!=='undefined')module.exports=root.RiskData;
+function consolidate(s){
+ root.RiskEngine.validate(s);
+ const value=s.pools.reduce((n,p)=>n+p.value,0),debt=s.debtOther+s.pools.reduce((n,p)=>n+p.debt,0);
+ return {cash:s.cash,other:s.other,debtOther:0,usePledge:!!s.usePledge,pools:[{name:'合計部位',type:'質押',value,debt,pledge:s.other}]};
+}
+root.RiskData={normalize,consolidate};if(typeof module!=='undefined')module.exports=root.RiskData;
 })(typeof globalThis!=='undefined'?globalThis:this);

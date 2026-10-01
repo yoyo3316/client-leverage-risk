@@ -15,3 +15,9 @@ console.log('Passed: cloud snapshot validation, legacy fields removed, independe
 assert.equal(normalize({...raw,drop:28.72}).drop,28.72);assert.equal(normalize({...raw,members:[{name:'A',data:{...raw.members[0].data,pools:[{...raw.members[0].data.pools[0],trigger:999,target:1}]}}]}).members[0].data.pools[0].target,166);
 
 const pledgeRaw={version:2,members:[{name:'QA',data:{cash:0,other:100,debtOther:0,usePledge:true,pools:[{name:'QA',type:'融資',value:100,debt:50,pledge:80}]}}]};const pledgeSaved=require('./dist/data.js').normalize(pledgeRaw);assert.equal(pledgeSaved.members[0].data.usePledge,true);assert.equal(pledgeSaved.members[0].data.pools[0].pledge,80);
+
+const legacyPooled={cash:30,other:100,debtOther:20,usePledge:true,pools:[{name:'A',type:'融資',value:200,debt:100,pledge:30},{name:'B',type:'質押',value:300,debt:150,pledge:20}]};
+const consolidated=require('./dist/data.js').consolidate(legacyPooled);assert.equal(consolidated.pools.length,1);assert.equal(consolidated.pools[0].value,500);assert.equal(consolidated.pools[0].debt,270);assert.equal(consolidated.pools[0].pledge,100);assert.equal(consolidated.debtOther,0);
+assert.equal(require('./dist/engine.js').calculate(consolidated).equity,require('./dist/engine.js').calculate(legacyPooled).equity);
+assert.deepEqual(require('./dist/data.js').consolidate(consolidated),consolidated);
+console.log('Passed: legacy accounts and other debt consolidate without changing net assets; all unpledged stock allocated exactly once.');
