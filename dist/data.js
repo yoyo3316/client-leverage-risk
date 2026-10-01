@@ -9,7 +9,8 @@ function normalize(raw){
   return {name:m.name,...(m.planning?{planning:root.RiskPlanning.normalize(m.planning)}:{}),data:{cash:m.data.cash,other:m.data.other,debtOther:m.data.debtOther,...(m.data.usePledge!==undefined?{usePledge:!!m.data.usePledge}:{}),pools:m.data.pools.map(p=>{
    if(p.name.length>120)throw Error('帳戶名稱最多120字');
    if(p.pledgeRate!==undefined&&(!Number.isFinite(p.pledgeRate)||p.pledgeRate<0||p.pledgeRate>100))throw Error('質押年利率需介於0至100%');
-   return {...(p.pledgeRate!==undefined?{pledgeRate:p.pledgeRate}:{}),name:p.name,type:p.type,value:p.value,debt:p.debt,...(p.pledgeValue!==undefined?{pledgeValue:p.pledgeValue,pledgeDebt:p.pledgeDebt,marginValue:p.marginValue,marginDebt:p.marginDebt,legacyCombined:!!p.legacyCombined}:{}),...(p.cash!==undefined?{cash:p.cash,other:p.other,usePledge:!!p.usePledge}:{}),trigger:130,target:166,...(p.pledge!==undefined?{pledge:p.pledge}:{})};
+   if(p.marginRate!==undefined&&(!Number.isFinite(p.marginRate)||p.marginRate<0||p.marginRate>100))throw Error('融資年利率需介於0至100%');if(p.renewalMonth!==undefined&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(p.renewalMonth))throw Error('展延月份格式不正確');
+   return {...(p.marginRate!==undefined?{marginRate:p.marginRate}:{}),...(p.renewalMonth!==undefined?{renewalMonth:p.renewalMonth}:{}),...(p.pledgeRate!==undefined?{pledgeRate:p.pledgeRate}:{}),name:p.name,type:p.type,value:p.value,debt:p.debt,...(p.pledgeValue!==undefined?{pledgeValue:p.pledgeValue,pledgeDebt:p.pledgeDebt,marginValue:p.marginValue,marginDebt:p.marginDebt,legacyCombined:!!p.legacyCombined}:{}),...(p.cash!==undefined?{cash:p.cash,other:p.other,usePledge:!!p.usePledge}:{}),trigger:130,target:166,...(p.pledge!==undefined?{pledge:p.pledge}:{})};
   })}};
  });
  const result={version:2,date:/^\d{4}-\d{2}-\d{2}$/.test(raw.date)?raw.date:'',mode:raw.mode==='示範'?'示範':'使用者輸入',drop:Number.isFinite(raw.drop)&&raw.drop>=0&&raw.drop<=60?raw.drop:20,members};

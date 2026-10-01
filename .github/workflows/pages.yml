@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: node test.cjs && node data-test.cjs && node cloud-test.cjs && node scenario-test.cjs && node summary-test.cjs && node broker-test.cjs && node capacity-test.cjs && node readiness-test.cjs && node market-test.cjs && node conservative-test.cjs && node planning-test.cjs
-      - run: node --check dist/app.js && node --check dist/cloud.js && node --check dist/data.js && node --check dist/history.js && node --check dist/planning.js && node --check dist/extras.js
+      - run: node test.cjs && node data-test.cjs && node cloud-test.cjs && node scenario-test.cjs && node summary-test.cjs && node broker-test.cjs && node capacity-test.cjs && node readiness-test.cjs && node market-test.cjs && node conservative-test.cjs && node planning-test.cjs && node cashflow-test.cjs
+      - run: node --check dist/app.js && node --check dist/cloud.js && node --check dist/data.js && node --check dist/history.js && node --check dist/planning.js && node --check dist/extras.js && node --check dist/cashflow.js && node --check dist/year.js
   deploy:
     needs: validate
     environment:
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: node test.cjs && node data-test.cjs && node cloud-test.cjs && node scenario-test.cjs && node summary-test.cjs && node broker-test.cjs && node capacity-test.cjs && node readiness-test.cjs && node market-test.cjs && node conservative-test.cjs && node planning-test.cjs
+      - run: node test.cjs && node data-test.cjs && node cloud-test.cjs && node scenario-test.cjs && node summary-test.cjs && node broker-test.cjs && node capacity-test.cjs && node readiness-test.cjs && node market-test.cjs && node conservative-test.cjs && node planning-test.cjs && node cashflow-test.cjs
       - run: python scripts/fetch-index.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

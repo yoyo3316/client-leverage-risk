@@ -62,7 +62,7 @@ function render(){
  renderHistory(event);
  const cap=RiskEngine.capacity(scope),dropText=n=>n===null?'無借款':pct(Math.floor(n*10000+1e-7)/100);
  $('plainConclusion').innerHTML=`<div class="capacityGrid">${[['目前：最早保守門檻',dropText(cap.current),'由 '+limitName(scope,false)+' 決定'],['先用現金可扛',dropText(cap.cashOnly),'不投入現股'],['再加現股最多可扛',dropText(cap.cash),'質押166%／融資130%']].map(([a,b,c])=>`<div class="metric"><span>${a}</span><strong>${b}</strong><small>${esc(c)}</small></div>`).join('')}</div><p><b>曝險 ${cap.leverage===null?'無法計算':fmt(cap.leverage)+' 倍'}：</b>${cap.leverage===null?'淨資產非正，須檢視借款。':'股票跌10%，淨資產約少 '+pct(cap.leverage*10)+'。'}</p><p><b>下跌 ${pct(drop*100)} 的情境：</b>${readiness.label}${readiness.support.cashGap>0?'，仍缺 '+fmt(readiness.support.cashGap)+' 萬':'。'}</p><details class="inlineNotes"><summary>計算說明</summary><p>股票含未設質現股皆同步下跌。現股只加入所在券商，現金可限同一人調用。三種可扛跌幅皆要求質押166%、融資130%；為自訂保守門檻，非實際處分條件。現股依需要分配給同券商各部位，未模擬沿途多次補款。曝險倍數不是安全保證。</p></details>`;
- $('clientSummary').value=RiskSummary.generate([{name,data:scope}],drop,$('date').value,event?.title||'');$('summaryContext').textContent=name+' · 下跌 '+pct(drop*100)+' · '+(broker<0?'依券商設定':scope.usePledge?'已追加現股':'未追加現股');$('copyStatus').textContent='';if(window.RiskExtras)RiskExtras.render();
+ $('clientSummary').value=RiskSummary.generate([{name,data:scope}],drop,$('date').value,event?.title||'');$('summaryContext').textContent=name+' · 下跌 '+pct(drop*100)+' · '+(broker<0?'依券商設定':scope.usePledge?'已追加現股':'未追加現股');$('copyStatus').textContent='';if(window.RiskExtras)RiskExtras.render();if(window.RiskYear)RiskYear.render();
 
 }
 function drawCurve(now,total,drop,distance){
@@ -129,7 +129,7 @@ function renderBulk(){
  updateBulkTotals();
 }
 function updateBulkTotals(){family.forEach((m,i)=>{const r=RiskEngine.calculate(m.data),el=$('bulkTotal'+i);if(el)el.textContent='股票 '+fmt(r.stock)+' · 借款 '+fmt(r.debt)+' · 淨資產 '+fmt(r.equity);});}
-function showPage(page){page=page===true?'entry':page===false?'dashboard':page;for(const key of ['entry','dashboard','interest','exposure','estate']){$(key+'View').hidden=key!==page;$(key+'Tab').setAttribute('aria-selected',String(key===page));}document.querySelector('.advancedEditor').hidden=page!=='dashboard';inputs();if(window.RiskExtras)RiskExtras.render(true);}
+function showPage(page){page=page===true?'entry':page===false?'dashboard':page;for(const key of ['entry','dashboard','interest','exposure','estate','cashflow']){$(key+'View').hidden=key!==page;$(key+'Tab').setAttribute('aria-selected',String(key===page));}document.querySelector('.advancedEditor').hidden=page!=='dashboard';inputs();if(window.RiskExtras)RiskExtras.render(true);if(window.RiskYear)RiskYear.render(true);}
 $('reportMember').onchange=e=>{active=Number(e.target.value);broker=-1;state=family[active].data;inputs();};
 $('entryTab').onclick=()=>showPage(true);$('dashboardTab').onclick=()=>showPage(false);
 $('bulkMembers').addEventListener('input',e=>{const d=e.target.dataset;if(d.bulkMember===undefined)return;const m=family[Number(d.bulkMember)],key=d.bulkKey;if(key==='memberName')m.name=e.target.value;else {const p=m.data.pools[Number(d.bulkPool)];p[key]=key==='name'?e.target.value:e.target.value===''?NaN:Number(e.target.value);}state=family[active].data;mark();render();updateBulkTotals();});
