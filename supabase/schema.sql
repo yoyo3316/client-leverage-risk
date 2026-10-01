@@ -4,6 +4,7 @@ begin;
 create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 create table private.app_owners (email text primary key check (email = lower(email)));
+alter table private.app_owners enable row level security;
 revoke all on private.app_owners from public, anon, authenticated;
 insert into private.app_owners(email) values (lower('OWNER_EMAIL'));
 create function private.is_app_owner() returns boolean
