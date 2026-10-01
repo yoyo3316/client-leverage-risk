@@ -1,6 +1,6 @@
 # 客戶槓桿風險儀表板
 
-繁體中文、純靜態、無外部套件。供營業員與客戶共同檢視中信、凱基及其他機構融資／質押借款。示範數字為虛構。
+繁體中文、靜態前端，使用 Supabase Auth 與資料庫提供私人雲端儲存。供營業員與客戶共同檢視中信、凱基及其他機構融資／質押借款。示範數字為虛構。
 
 ## 功能
 - 每一融資或質押擔保池獨立計算維持率、追繳距離。
@@ -11,7 +11,7 @@
 
 ## 本機使用與測試
 直接開啟 `dist/index.html`，或 `python3 -m http.server 8000 --directory dist`。
-執行 `node test.cjs`。
+執行 `node test.cjs && node data-test.cjs && node cloud-test.cjs`。
 
 ## GitHub Pages
 將專案上傳至自己的GitHub repository，Settings → Pages → Source 選 GitHub Actions。本專案已有 `.github/workflows/pages.yml`，以 `dist` 為靜態發布目錄。啟用後重新執行 workflow 即可。Github Pages網址可能公開，不要把真實客戶JSON、截圖或報告提交進repository。
@@ -29,14 +29,27 @@
 - https://www.kgi.com.tw/zh-tw/support-index/faq
 - https://investoredu.twse.com.tw/pages/TWSE_InvestmentQA.aspx?ID=4
 
-## 隱私
-輸入僅存在當前頁面記憶體，不使用localStorage、不發送客戶資料。重新整理會還原示範。匯出檔案、列印內容由使用者保管。私密Site的存取限制來自託管平台，純靜態程式本身沒有登入機制。
+## 隱私與雲端儲存
+使用者按下儲存時才將部位上傳至 Supabase；未儲存的部位只在頁面記憶體中。公開 GitHub 專案不包含客戶資料、管理者Email、資料庫密碼或service-role key。前端publishable key是公開連線識別，不授予資料存取權。
+
+資料庫RLS同時檢查登入者UID與私人管理者名單。未登入訪客、其他登入帳號無法讀取或寫入檔案。登入狀態保存在此裝置的localStorage；登出會清除頁面部位。共用裝置使用完請登出。自行匯出檔案及列印內容由使用者保管。
+
+每份檔案包含所有家庭成員、各券商帳戶、基準日及跌幅。可建立多份檔案、更新或另存新檔；載入不會自動覆寫未儲存變更。更新以revision檢查衝突，其他視窗修改過的版本不會被直接覆蓋。雲端不提供永久刪除按鈕。
+
+## Supabase 初次設定
+1. 使用免費專案，啟用Data API及自動RLS，關閉Automatically expose new tables。
+2. 在SQL Editor執行`supabase/schema.sql`，先將OWNER_EMAIL換成管理者Email（不可提交含真實Email的SQL至公開repo）。
+3. Authentication的Site URL設為正式GitHub Pages網址，Email登入連結回到同一網址。
+4. 預設郵件服務限專案團隊成員；管理者可使用相同Email登入。擴大使用者前應另外設定SMTP、私人授權名單與信件送達測試。
+5. `dist/cloud.js`只放專案URL與publishable key。資料庫密碼、secret/service-role key不可放在前端。
+
+SDK固定為Supabase JS 2.117.1，瀏覽器UMD檔隨本站部署於`dist/supabase.js`，不依赖訪客載入第三方CDN。SDK授權見`SUPABASE-LICENSE`。
 
 ## 授權
 MIT，見 LICENSE。
 
 ## 家庭多帳號
-新增成員後，可在其名下增加多個券商融資／質押擔保池。家庭总覽逐帳戶顯示維持率與追繳距離，並比較各成員淨資產。現金缺口逐成員計算後加總，不假設跨持有人資金可即時調度。JSON v2含members；舊版v1資料可匯入為單一成員。所有數據仍只存在頁面記憶體。
+新增成員後，可在其名下增加多個券商融資／質押擔保池。家庭总覽逐帳戶顯示維持率與追繳距離，並比較各成員淨資產。現金缺口逐成員計算後加總，不假設跨持有人資金可即時調度。JSON v2含members；舊版v1資料可匯入為單一成員。未儲存的數據仍只存在頁面記憶體。
 
 股票擔保計值欄位已移除。舊JSON中的collateral欄位忽略，统一依value（股票市值）計算維持率與追繳距離。
 
