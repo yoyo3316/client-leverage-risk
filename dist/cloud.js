@@ -13,7 +13,7 @@
   const changed=dirty(),draft=!current;el('saveBadge').textContent=mode==='示範'&&draft&&!changed?'示範資料':changed?'尚有未儲存變更':current?'已儲存至雲端':'尚未儲存至雲端';el('saveState').classList.toggle('unsaved',changed);
   el('lastSaved').textContent=current?'編輯中：'+current.name+'｜最後儲存：'+new Date(current.updated_at).toLocaleString('zh-TW'):(user?'新草稿｜按下儲存才會上傳':'尚未登入｜輸入只留在此頁面');
   el('passwordSignIn').disabled=busy||!!user;el('setPassword').disabled=busy||!user;el('sendLogin').disabled=busy||!!user;el('verifyLogin').disabled=busy||!!user;
-  for(const id of ['saveCloud','saveCopy','loadCloud','refreshCloud','newCloud','signOut'])el(id).disabled=busy||!user;
+  for(const id of ['saveCloud','saveCopy','compareCloud','loadCloud','refreshCloud','newCloud','signOut'])el(id).disabled=busy||!user;
   el('caseList').disabled=busy;el('caseArea').disabled=busy||!user;
   const trash=el('caseArea').value==='trash',selected=cases.find(c=>c.id===el('caseList').value);el('deleteCloud').hidden=trash;el('restoreCloud').hidden=!trash;el('deleteCloud').disabled=busy||!user||!selected||archived(selected);el('restoreCloud').disabled=busy||!user||!selected||!archived(selected);el('loadCloud').disabled=busy||!user||trash||!selected;
   el('saveCloud').textContent=current?'更新這份檔案':'儲存新檔案';
@@ -56,7 +56,7 @@
   baseline=fingerprint();
   client.auth.onAuthStateChange((event,session)=>{
    const previous=user?.id,next=session?.user||null;user=next;
-   if(previous!==next?.id){for(const id of ['loginPassword','newPassword','confirmPassword'])el(id).value='';epoch++;if(previous)resetPrivate();}
+   if(previous!==next?.id){for(const id of ['loginPassword','newPassword','confirmPassword'])el(id).value='';epoch++;if(previous){window.RiskCompare?.clear();resetPrivate();}}
    controls();
    if(event==='SIGNED_OUT'){resetPrivate();status('已登出，頁面上的私人資料已清除。');}
    if(next&&['SIGNED_IN','INITIAL_SESSION'].includes(event))setTimeout(()=>action(async()=>{await list();status('已登入。請選擇檔案載入，或填寫資料後手動儲存。');}),0);
@@ -97,6 +97,13 @@
  }
  el('saveCloud').onclick=()=>action(()=>save(false));el('saveCopy').onclick=()=>action(()=>save(true));
  el('refreshCloud').onclick=()=>action(async()=>{await list(el('caseList').value);status('已更新雲端檔案清單。');});
+ el('compareCloud').onclick=()=>action(async()=>{
+  const id=el('caseList').value;if(!id||el('caseArea').value==='trash')throw Error('請選擇已存檔案');
+  const account=user.id,version=epoch;
+  const {data,error}=await client.from('risk_cases').select('name,payload').eq('id',id).eq('user_id',account).maybeSingle();if(error)throw error;
+  if(version!==epoch||user?.id!==account)return;if(!data||data.payload?._trashed)throw Error('檔案不存在或已刪除');
+  window.RiskCompare.set(RiskData.normalize(data.payload),data.name);showPage('dashboard');status('已選為比較資料，未取代目前部位。');
+ });
  el('loadCloud').onclick=()=>action(async()=>{
   const id=el('caseList').value;if(!id)throw Error('請先選擇雲端檔案');if(el('caseArea').value==='trash')throw Error('請先還原垃圾桶檔案再載入');
   if(dirty()&&!confirm('載入會取代目前頁面未儲存的資料，確定載入？'))return;

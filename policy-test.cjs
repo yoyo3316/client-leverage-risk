@@ -1,0 +1,4 @@
+const assert=require('node:assert/strict');const E=require('./dist/engine.js');
+const s={cash:30,other:100,debtOther:0,usePledge:false,pools:[{name:'A',type:'質押',value:600,debt:400,pledgeValue:600,pledgeDebt:400,marginValue:0,marginDebt:0,other:100,pledge:100}]};
+assert.equal(E.capacity(s).current,0);const before=E.capacity(s);E.setPolicy(true);const after=E.capacity(s);assert.ok(Math.abs(after.current-0.13333333333)<1e-8);assert.ok(after.cashOnly>before.cashOnly);assert.ok(after.cash>before.cash);assert.ok(E.readiness(s,.1).original.repay<1e-8);E.setPolicy(false);assert.equal(E.capacity(s).current,0);assert.equal(s.pools[0].debt,400);
+const margin=structuredClone(s);Object.assign(margin.pools[0],{pledgeValue:0,pledgeDebt:0,marginValue:600,marginDebt:400});const cap=E.capacity(margin);E.setPolicy(true);assert.deepEqual(E.capacity(margin),cap);E.setPolicy(false);console.log('policy tests passed');

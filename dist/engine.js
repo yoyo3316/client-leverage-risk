@@ -1,7 +1,10 @@
 (function(root){
+let pledgeThreshold=1.66;
+function setPolicy(all130=false){pledgeThreshold=all130?1.3:1.66;}
+function policy(){return {pledge:pledgeThreshold*100,margin:130};}
 
 function conservativePool(p,drop,enabled,planning=false){
- const rows=[{type:'質押',value:p.pledgeValue,debt:p.pledgeDebt,threshold:planning?1.66:1.3},{type:'融資',value:p.marginValue,debt:p.marginDebt,threshold:1.3}].filter(x=>x.value||x.debt);
+ const rows=[{type:'質押',value:p.pledgeValue,debt:p.pledgeDebt,threshold:planning?pledgeThreshold:1.3},{type:'融資',value:p.marginValue,debt:p.marginDebt,threshold:1.3}].filter(x=>x.value||x.debt);
  const extra=enabled?(p.pledge||0):0,factor=1-drop;
  const needed=d=>rows.reduce((n,x)=>n+(x.debt>0?Math.max(0,x.threshold*x.debt/(1-d)-x.value):0),0);
  const hasDebt=rows.some(x=>x.debt>0);let lo=0,hi=1;
@@ -61,5 +64,5 @@ function readiness(s,drop){
 
  return {original,stocks,support,present,cashUsed:Math.min(s.cash,original.repay),afterCashGap:original.cashGap,needsStock:original.cashGap>1e-8,label,tone,capacity:capacity(s)};
 }
-root.RiskEngine={calculate,validate,family,verdict,capacity,readiness};if(typeof module!=='undefined')module.exports=root.RiskEngine;
+root.RiskEngine={setPolicy,policy,calculate,validate,family,verdict,capacity,readiness};if(typeof module!=='undefined')module.exports=root.RiskEngine;
 })(typeof window!=='undefined'?window:globalThis);
