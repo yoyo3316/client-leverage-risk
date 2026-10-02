@@ -104,7 +104,7 @@ $('pools').addEventListener('input',e=>{const {i,key}=e.target.dataset;if(key){s
 $('pools').addEventListener('click',e=>{if(e.target.dataset.confirmSplit){state.pools[broker].legacyCombined=false;mark();inputs();document.dispatchEvent(new Event('change',{bubbles:true}));return;}if(e.target.dataset.remove!==undefined){state.pools.splice(+e.target.dataset.remove,1);mark();inputs();}});
 $('add').onclick=()=>{if(state.pools.length>=100){$('error').textContent='每位成員最多100個帳戶';return;}state.pools.push({name:'新券商',type:'質押',value:0,debt:0,cash:0,other:0,usePledge:false});broker=state.pools.length-1;mark();inputs();};
 $('usePledge').onchange=e=>{if(broker<0)return;state.pools[broker].usePledge=e.target.checked;mark();inputs();};
-$('drop').oninput=render;
+$('drop').oninput=()=>render();
 $('history').onclick=e=>{const button=e.target.closest('[data-event]');if(!button)return;const event=RiskHistory.events.find(x=>x.id===button.dataset.event);$('drop').value=event.dropPercent;render();$('drop').dispatchEvent(new Event('change',{bubbles:true}));};
 function openMember(e){const button=e.target.closest('[data-select-member]');if(!button)return;active=Number(button.dataset.selectMember);broker=-1;state=family[active].data;inputs();$('reportMember').focus();}
 $('overview').onclick=openMember;$('memberCards').onclick=openMember;
@@ -116,7 +116,7 @@ $('member').onchange=e=>{family[active].data=state;active=Number(e.target.value)
 $('memberName').oninput=e=>{family[active].name=e.target.value;$('member').options[active].textContent=e.target.value||'未命名成員';mark();render();};
 $('addMember').onclick=()=>{if(family.length>=30){$('error').textContent='最多30位成員';return;}family[active].data=state;family.push({name:'新成員 '+(family.length+1),data:blank()});active=family.length-1;state=family[active].data;broker=-1;mark();inputs();};
 $('removeMember').onclick=()=>{if(family.length===1){$('error').textContent='至少保留一位成員；可使用清空移除數據';return;}if(!confirm('刪除「'+(family[active].name||'未命名成員')+'」與其帳戶？'))return;family.splice(active,1);active=Math.min(active,family.length-1);state=family[active].data;broker=-1;mark();inputs();};
-$('date').addEventListener('input',render);
+$('date').addEventListener('input',()=>render());
 $('copySummary').onclick=async()=>{if($('error').textContent){$('copyStatus').textContent='請先修正輸入。';return;}try{await navigator.clipboard.writeText($('clientSummary').value);$('copyStatus').textContent='已複製摘要，可貼給客戶。';}catch{$('clientSummary').focus();$('clientSummary').select();$('copyStatus').textContent='請長按或使用 Ctrl+C 複製選取文字。';}};
 $('dataChecks').onclick=e=>{const b=e.target.closest('[data-review-member]');if(b){active=Number(b.dataset.reviewMember);state=family[active].data;broker=Number(b.dataset.reviewBroker);showPage(true);document.querySelector('.singleEditor').open=true;inputs();$('broker').focus();}};
 $('brokerOverview').onclick=e=>{const b=e.target.closest('[data-broker]');if(b){broker=Number(b.dataset.broker);showPage(true);document.querySelector('.singleEditor').open=true;inputs();$('broker').focus();}};
