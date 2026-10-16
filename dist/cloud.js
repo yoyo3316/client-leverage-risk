@@ -39,7 +39,18 @@
   cases=data||[];showCases(selected);
  }
  async function action(work){if(busy)return;busy=true;controls();try{await work();}catch(e){status(message(e),true);}finally{busy=false;controls();}}
+ // Bound network requests so an unavailable cloud cannot trap the login UI.
+ async function cloudFetch(input,options={}){
+  const controller=new AbortController(),upstream=options.signal;
+  const abort=()=>controller.abort();
+  if(upstream?.aborted)abort();else upstream?.addEventListener('abort',abort,{once:true});
+  const timer=setTimeout(abort,12000);
+  try{return await fetch(input,{...options,signal:controller.signal});}
+  finally{clearTimeout(timer);upstream?.removeEventListener('abort',abort);}
+ }
  function message(e){
+  if(['refresh_token_not_found','refresh_token_already_used','session_not_found','session_expired'].includes(e.code))return '登入已過期，請重新輸入 Email 與密碼，或寄送新的登入信。';
+  if(e.name==='AbortError'||e.name==='AuthRetryableFetchError'||/failed to fetch|networkerror|load failed|fetch failed|aborted/i.test(e.message||'')||e.status>=500)return '雲端暫時無法連線，請稍後重新登入。若久未使用，請到 Supabase 專案確認是否暫停，並按 Restore 恢復。';
   if(e.code==='invalid_credentials')return 'Email 或密碼不正確。若尚未設定密碼，請先在已登入的裝置設定。';
   if(e.code==='reauthentication_needed')return '請用登入信重新驗證身分，再設定密碼。';
   if(e.code==='weak_password')return '密碼不符合要求，請使用更長且較難猜的密碼。';
@@ -52,7 +63,7 @@
  }
  try{
   if(!window.supabase)throw Error('登入元件載入失敗，仍可使用下方試算與JSON匯出。');
-  client=window.supabase.createClient('https://wusjzebqdzcdoichuhcd.supabase.co','sb_publishable_dVoPExBEC0wbVX-Zy903ZQ_T6QXprNT',{auth:{storageKey:'leverage-risk-auth',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  client=window.supabase.createClient('https://wusjzebqdzcdoichuhcd.supabase.co','sb_publishable_dVoPExBEC0wbVX-Zy903ZQ_T6QXprNT',{global:{fetch:cloudFetch},auth:{storageKey:'leverage-risk-auth',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   baseline=fingerprint();
   client.auth.onAuthStateChange((event,session)=>{
    const previous=user?.id,next=session?.user||null;user=next;
@@ -63,7 +74,12 @@
   });
   const {data,error}=await client.auth.getSession();if(error)throw error;user=data.session?.user||null;controls();
   if(user)await action(async()=>{await list();status('已登入。請選擇雲端檔案再按載入。');});else status('登入後可手動儲存；輸入不會自動上傳。');
- }catch(e){status(message(e),true);for(const id of ['sendLogin','passwordSignIn','setPassword','verifyLogin'])el(id).disabled=true;return;}
+ }catch(e){
+  status(message(e),true);
+  // Session restoration can fail after inactivity. Keep all login handlers wired.
+  if(!client){for(const id of ['sendLogin','passwordSignIn','setPassword','verifyLogin'])el(id).disabled=true;return;}
+  controls();
+ }
  el('passwordLogin').onsubmit=e=>{e.preventDefault();return action(async()=>{
   const email=el('passwordEmail').value.trim();if(!email||!el('passwordEmail').checkValidity())throw Error('請填寫有效 Email');
   const password=el('loginPassword').value;if(!password)throw Error('請輸入密碼');

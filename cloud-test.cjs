@@ -31,5 +31,23 @@ const meta={id:'case-1',name:'QA',revision:7,updated_at:'2026-10-01T00:00:00Z'};
  el('loginToken').value='https://wrong.example/auth/v1/verify?token=fake&type=magiclink';await el('cloudVerify').onsubmit({preventDefault(){}});assert.equal(sdk.verified,undefined);assert.match(el('cloudStatus').textContent,/不接受其他網址/);
  el('loginToken').value='https://wusjzebqdzcdoichuhcd.supabase.co/auth/v1/verify?token=synthetic-test-hash&type=magiclink';await el('cloudVerify').onsubmit({preventDefault(){}});assert.equal(sdk.verified.token_hash,'synthetic-test-hash');assert.equal(sdk.verified.type,'magiclink');assert.equal(el('loginToken').value,'');
  await el('signOut').onclick();assert.equal(context.family[0].data.cash,0);assert.equal(el('cloudWorkspace').hidden,true);
+ // A failed old-session refresh must not prevent a fresh login or alter drafts.
+ for(const error of [{code:'refresh_token_not_found',message:'Invalid Refresh Token'}, {name:'AuthRetryableFetchError',message:'Network unavailable'}, {status:503,message:'Service unavailable'}]){
+  sdk.auth.getSession=async()=>({data:{session:null},error});
+  context.family[0].data.cash=77;
+  el('passwordLogin').onsubmit=null;el('cloudLogin').onsubmit=null;
+  const before=requests.length;
+  await vm.runInContext(fs.readFileSync('dist/cloud.js','utf8'),context);
+  assert.equal(typeof el('passwordLogin').onsubmit,'function');
+  assert.equal(typeof el('cloudLogin').onsubmit,'function');
+  assert.equal(el('passwordSignIn').disabled,false);
+  assert.equal(el('sendLogin').disabled,false);
+  assert.equal(context.family[0].data.cash,77,'failed restoration preserves workspace');
+  assert.equal(requests.length,before,'failed restoration never accesses cloud cases');
+  assert.match(el('cloudStatus').textContent,error.code?/登入已過期/:/雲端暫時無法連線/);
+  el('loginPassword').value='synthetic-test-password';
+  await el('passwordLogin').onsubmit({preventDefault(){}});
+  assert.match(el('cloudStatus').textContent,/已登入此裝置/);
+ }
  console.log('Passed: manual-only cloud writes, ownership filters, stale revision conflict, invalid remote data, in-flight edit retention, sign-out clearing, save indicators, cancellable trash, restore, ownership and stale-revision protection.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
